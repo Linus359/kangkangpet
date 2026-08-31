@@ -1,0 +1,101 @@
+{
+  "name": "kangkangpet",
+  "version": "1.3.6",
+  "description": "A transparent always-on-top desktop pet app for 康康熊.",
+  "main": "main.js",
+  "scripts": {
+    "prestart": "node scripts/process-pet-assets.js",
+    "start": "electron .",
+    "test": "node --test",
+    "check": "node --check main.js && node --check src/main/reminders.js && node --check src/main/reminder-scheduler.js && node --check src/main/config-store.js && node --check src/main/logger.js && node --check src/main/migration.js && node --check src/main/reminder-backup.js && python scripts/export-domain-reminders.py",
+    "smoke": "node scripts/smoke-check.js",
+    "prepack": "node scripts/process-pet-assets.js",
+    "pack": "electron-builder --dir",
+    "predist": "node scripts/process-pet-assets.js",
+    "dist": "electron-builder --win nsis",
+    "build:exe": "powershell -ExecutionPolicy Bypass -File .\\scripts\\build-exe.ps1",
+    "cert:generate": "powershell -ExecutionPolicy Bypass -File .\\scripts\\generate-code-sign-cert.ps1"
+  },
+  "keywords": [
+    "electron",
+    "desktop-pet",
+    "windows",
+    "desktop-pet"
+  ],
+  "author": "Linus",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Linus359/kangkangpet.git"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9",
+    "exceljs": "^4.4.0"
+  },
+  "devDependencies": {
+    "electron": "^39.8.5",
+    "electron-builder": "^24.13.3",
+    "sharp": "^0.33.5"
+  },
+  "build": {
+    "appId": "com.forcome.kangkangpet",
+    "productName": "康康熊桌面宠物",
+    "copyright": "Copyright © 2026 Linus",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "pet.html",
+      "panel.html",
+      "quick-reminder.html",
+      "preload/**/*",
+      "src/main/**/*",
+      "scripts/smoke-check.js",
+      "scripts/process-pet-assets.js",
+      "package.json",
+      "assets/**/*",
+      "build/face.*",
+      "README.md"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "assets/cat/**",
+      "assets/cat-processed/**"
+    ],
+    "publish": {
+      "provider": "github",
+      "owner": "Linus359",
+      "repo": "kangkangpet"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/face.ico",
+      "artifactName": "kangkangpet-setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "康康熊桌面宠物",
+      "uninstallDisplayName": "康康熊桌面宠物",
+      "installerIcon": "build/face.ico",
+      "uninstallerIcon": "build/face.ico",
+      "installerHeaderIcon": "build/face.ico",
+      "language": "2052",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "include": "build/installer.nsh"
+    }
+  }
+}

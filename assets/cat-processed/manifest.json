@@ -1,0 +1,5035 @@
+{
+  "version": 1,
+  "padding": 7,
+  "assets": [
+    {
+      "inputHash": "9b5c9a9bec5853cc9528074dcc6dc3dce368c37b0819b34ac7b3334b90f398cb",
+      "source": "FORCOME_IP_FA_02_6_transparent.png",
+      "output": "assets/cat-processed/待机_000_康康熊透明站立.png",
+      "default": true,
+      "width": 1409,
+      "height": 1405,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 1395,
+        "height": 1391
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 1135758,
+        "transparentRatio": 0.5737,
+        "sourceHadAlpha": true,
+        "removedEdgePixels": 0,
+        "corners": [
+          [
+            255,
+            255,
+            255,
+            0
+          ],
+          [
+            255,
+            255,
+            255,
+            0
+          ],
+          [
+            255,
+            255,
+            255,
+            0
+          ],
+          [
+            255,
+            255,
+            255,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "e492a40f757f41b31b62893a4c32c8da44555bc3b85933aa889b33afd4b36954",
+      "source": "assets/cat/互动_001_挥手打招呼.png",
+      "output": "assets/cat-processed/互动_001_挥手打招呼.png",
+      "default": false,
+      "width": 183,
+      "height": 293,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 169,
+        "height": 279
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 20379,
+        "transparentRatio": 0.3801,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 29170,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "5a22462005997068f2cf8da4f2c8a9d6935cadb00c5033daf269e5c2358bb9e2",
+      "source": "assets/cat/互动_002_指向上方.png",
+      "output": "assets/cat-processed/互动_002_指向上方.png",
+      "default": false,
+      "width": 174,
+      "height": 291,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 160,
+        "height": 277
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 19350,
+        "transparentRatio": 0.3822,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 27867,
+        "corners": [
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            254,
+            254,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "6bfa1e44c473da7c112c9fed23802f9ee35d4bcd4116f66aa4ff4f1746d10772",
+      "source": "assets/cat/互动_003_捧绿色礼盒.png",
+      "output": "assets/cat-processed/互动_003_捧绿色礼盒.png",
+      "default": false,
+      "width": 185,
+      "height": 270,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 171,
+        "height": 256
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 19882,
+        "transparentRatio": 0.398,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 27521,
+        "corners": [
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            254,
+            254,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "d96ee76d775d7167d00ceeb1eb5a350dc91d50037da7b32962aefc8dc6cbfda7",
+      "source": "assets/cat/互动_004_收蝴蝶结礼物.png",
+      "output": "assets/cat-processed/互动_004_收蝴蝶结礼物.png",
+      "default": false,
+      "width": 154,
+      "height": 310,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 140,
+        "height": 296
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 18581,
+        "transparentRatio": 0.3892,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 29016,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            252,
+            0
+          ],
+          [
+            253,
+            252,
+            252,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "adf6f653e59592fdc41efc0b8dc11ae0ad50a04674cffaa3f01a107f456a86c9",
+      "source": "assets/cat/互动_005_开心挥手.png",
+      "output": "assets/cat-processed/互动_005_开心挥手.png",
+      "default": false,
+      "width": 224,
+      "height": 341,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 212,
+        "height": 327
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 32960,
+        "transparentRatio": 0.4315,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 39617,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            252,
+            252,
+            252,
+            0
+          ],
+          [
+            254,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "e3227a166f014e67ea5a430c31ffac3028ae0efd69dc75a7f88a08f4d7e24e51",
+      "source": "assets/cat/互动_006_闪光竖拇指.png",
+      "output": "assets/cat-processed/互动_006_闪光竖拇指.png",
+      "default": false,
+      "width": 207,
+      "height": 333,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 193,
+        "height": 319
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 29771,
+        "transparentRatio": 0.4319,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 40163,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "20040b94d4b3b76b5340c9dd040c5f57f47b5f91d9d10a7bbc4036dcf2f16fe7",
+      "source": "assets/cat/互动_007_双手竖拇指.png",
+      "output": "assets/cat-processed/互动_007_双手竖拇指.png",
+      "default": false,
+      "width": 233,
+      "height": 337,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 219,
+        "height": 323
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 33461,
+        "transparentRatio": 0.4261,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 41122,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            252,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "f751ca9009e3e0a576310ecfe15c9d914e41210be8db19305ff5c1403f368209",
+      "source": "assets/cat/互动_008_持扳手.png",
+      "output": "assets/cat-processed/互动_008_持扳手.png",
+      "default": false,
+      "width": 212,
+      "height": 306,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 198,
+        "height": 292
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 27021,
+        "transparentRatio": 0.4165,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 35919,
+        "corners": [
+          [
+            253,
+            254,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            252,
+            0
+          ],
+          [
+            253,
+            253,
+            252,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "97e02b4dfb639db21c08333d93bf593a0fb5aa03c7987c209b48bb9a706fbb6e",
+      "source": "assets/cat/互动_009_闪光欢呼.png",
+      "output": "assets/cat-processed/互动_009_闪光欢呼.png",
+      "default": false,
+      "width": 218,
+      "height": 299,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 204,
+        "height": 285
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 28986,
+        "transparentRatio": 0.4447,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 40123,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            253,
+            0
+          ],
+          [
+            252,
+            252,
+            252,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "88b6bd38fec72d31ad7ab7e0b7827300af49e1a9b3809624516623a4ff84c6f5",
+      "source": "assets/cat/互动_010_大笑挥手.png",
+      "output": "assets/cat-processed/互动_010_大笑挥手.png",
+      "default": false,
+      "width": 167,
+      "height": 214,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 153,
+        "height": 200
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 17040,
+        "transparentRatio": 0.4768,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 21395,
+        "corners": [
+          [
+            253,
+            253,
+            252,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "15395ccb6269ac95633e79d246d40dcb4ad082e5232f5334005ff342652ab836",
+      "source": "assets/cat/互动_011_闪光单拇指.png",
+      "output": "assets/cat-processed/互动_011_闪光单拇指.png",
+      "default": false,
+      "width": 156,
+      "height": 209,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 142,
+        "height": 195
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 14583,
+        "transparentRatio": 0.4473,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 21184,
+        "corners": [
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            254,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "af84d721b6026415825a0263ed2af0a319fb4f74d8279929901955881326b40b",
+      "source": "assets/cat/互动_012_提工具箱.png",
+      "output": "assets/cat-processed/互动_012_提工具箱.png",
+      "default": false,
+      "width": 147,
+      "height": 197,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 133,
+        "height": 190
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 14059,
+        "transparentRatio": 0.4855,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 20122,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            253,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "51e00c79b733bf1bacd323e7bc1c6bd792641fd1258ff5aac01ee7958f5fdc82",
+      "source": "assets/cat/互动_013_左手挥手.png",
+      "output": "assets/cat-processed/互动_013_左手挥手.png",
+      "default": false,
+      "width": 135,
+      "height": 183,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 121,
+        "height": 169
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 11871,
+        "transparentRatio": 0.4805,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 19258,
+        "corners": [
+          [
+            252,
+            252,
+            252,
+            0
+          ],
+          [
+            254,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            252,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "ab36a98b8bb949d08c8b4f2c66cc6d1b31a29ee51ca36779af517f570bd0ae9b",
+      "source": "assets/cat/互动_014_举问候牌子.png",
+      "output": "assets/cat-processed/互动_014_举问候牌子.png",
+      "default": false,
+      "width": 165,
+      "height": 198,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 151,
+        "height": 191
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 16102,
+        "transparentRatio": 0.4929,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 21630,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "2f40b8672fda943daa968c4b7b0f01f0f54e1517bd1e04381aa9b3cb30d241e4",
+      "source": "assets/cat/互动_015_给盆栽浇水.png",
+      "output": "assets/cat-processed/互动_015_给盆栽浇水.png",
+      "default": false,
+      "width": 157,
+      "height": 176,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 143,
+        "height": 162
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 14494,
+        "transparentRatio": 0.5245,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 22345,
+        "corners": [
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "4abafbf19b3c71d9a6544a1679f6a35eec00b3c10aa0cf87f5357025585da015",
+      "source": "assets/cat/互动_016_持扫帚扫地.png",
+      "output": "assets/cat-processed/互动_016_持扫帚扫地.png",
+      "default": false,
+      "width": 139,
+      "height": 185,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 125,
+        "height": 171
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 13351,
+        "transparentRatio": 0.5192,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 20175,
+        "corners": [
+          [
+            254,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "00a93434c39041c3dddfd787d4daf2504f22f89f42174784d28d3a1a28670143",
+      "source": "assets/cat/互动_017_微笑挥手.png",
+      "output": "assets/cat-processed/互动_017_微笑挥手.png",
+      "default": false,
+      "width": 215,
+      "height": 311,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 202,
+        "height": 304
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 33229,
+        "transparentRatio": 0.497,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 39208,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "ed920e96db0a3fd4c2198e2d717f148ce916b1c34f947624ca552d77828bea99",
+      "source": "assets/cat/互动_018_边走边挥手.png",
+      "output": "assets/cat-processed/互动_018_边走边挥手.png",
+      "default": false,
+      "width": 179,
+      "height": 268,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 165,
+        "height": 254
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 21129,
+        "transparentRatio": 0.4404,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 31501,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "8e0357b4a778c9ab38521f8d432bfb90e676762b31321a3af70b47a802eec33b",
+      "source": "assets/cat/互动_019_站立挥手.png",
+      "output": "assets/cat-processed/互动_019_站立挥手.png",
+      "default": false,
+      "width": 190,
+      "height": 247,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 176,
+        "height": 233
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 21844,
+        "transparentRatio": 0.4655,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 27426,
+        "corners": [
+          [
+            254,
+            254,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            252,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            252,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "8b71bd786f3646ed60656c82e2b0661a106789390bf8426605a641a2d72c2e1e",
+      "source": "assets/cat/互动_020_双手挥手.png",
+      "output": "assets/cat-processed/互动_020_双手挥手.png",
+      "default": false,
+      "width": 205,
+      "height": 239,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 191,
+        "height": 225
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 26191,
+        "transparentRatio": 0.5346,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 36498,
+        "corners": [
+          [
+            254,
+            254,
+            252,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "8d3914a1df63516f5c2e9caf81364f6f30389f83e878a40a65e3952947157389",
+      "source": "assets/cat/互动_021_扫地动作.png",
+      "output": "assets/cat-processed/互动_021_扫地动作.png",
+      "default": false,
+      "width": 146,
+      "height": 203,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 132,
+        "height": 189
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 14549,
+        "transparentRatio": 0.4909,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 21637,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            252,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "072cd06dab3551cb3258ec21e52d33208a8e227232a7d38855af857d7f658d6d",
+      "source": "assets/cat/互动_022_给花浇水.png",
+      "output": "assets/cat-processed/互动_022_给花浇水.png",
+      "default": false,
+      "width": 159,
+      "height": 206,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 145,
+        "height": 192
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 17819,
+        "transparentRatio": 0.544,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 26393,
+        "corners": [
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            252,
+            252,
+            252,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "d91a66c2ec0ea0bcee21fd5626d37e1a95ff5238fc16759eff5a62b04d941aad",
+      "source": "assets/cat/互动_023_右手挥手.png",
+      "output": "assets/cat-processed/互动_023_右手挥手.png",
+      "default": false,
+      "width": 218,
+      "height": 311,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 204,
+        "height": 301
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 31892,
+        "transparentRatio": 0.4704,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 41439,
+        "corners": [
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            254,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "f26d59cd428d51bcdab7cb05acc1a535c7db226b3392cc1c38a5b9ce80e99979",
+      "source": "assets/cat/互动_024_鼓掌.png",
+      "output": "assets/cat-processed/互动_024_鼓掌.png",
+      "default": false,
+      "width": 150,
+      "height": 258,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 136,
+        "height": 244
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 15064,
+        "transparentRatio": 0.3893,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 24560,
+        "corners": [
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            252,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "2b8ba96dfd4c8dc5160b0b2c4ec8b4b8135424b8dbddd35717e88e52153f9307",
+      "source": "assets/cat/互动_025_小幅挥手.png",
+      "output": "assets/cat-processed/互动_025_小幅挥手.png",
+      "default": false,
+      "width": 194,
+      "height": 263,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 180,
+        "height": 249
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 23470,
+        "transparentRatio": 0.46,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 34062,
+        "corners": [
+          [
+            254,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "627b6ccfbb8b0640ab0aa24d705c29f0477d2773f967e60b2776b2f3e6879add",
+      "source": "assets/cat/互动_026_挥手.png",
+      "output": "assets/cat-processed/互动_026_挥手.png",
+      "default": false,
+      "width": 160,
+      "height": 216,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 147,
+        "height": 202
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 14974,
+        "transparentRatio": 0.4333,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 21154,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "ce89e55b0f748e5fe8cb6ece4d5043d4481d1e8a96877dd92420747f979c678b",
+      "source": "assets/cat/互动_027_竖拇指.png",
+      "output": "assets/cat-processed/互动_027_竖拇指.png",
+      "default": false,
+      "width": 130,
+      "height": 216,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 116,
+        "height": 209
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 11433,
+        "transparentRatio": 0.4072,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 16994,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "9664d2e5619254be568d270aa586bc5358f965000108acfcc0d6c23cb5d7195d",
+      "source": "assets/cat/互动_028_挥手告别.png",
+      "output": "assets/cat-processed/互动_028_挥手告别.png",
+      "default": false,
+      "width": 123,
+      "height": 182,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 109,
+        "height": 168
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 10453,
+        "transparentRatio": 0.4669,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 17540,
+        "corners": [
+          [
+            253,
+            252,
+            252,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "68bfde04d079db4c9c63c191eacf99082a8acccbf8840ada49860fb36994f896",
+      "source": "assets/cat/互动_029_拖地.png",
+      "output": "assets/cat-processed/互动_029_拖地.png",
+      "default": false,
+      "width": 149,
+      "height": 198,
+      "contentBounds": {
+        "left": 6,
+        "top": 7,
+        "width": 136,
+        "height": 184
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 15659,
+        "transparentRatio": 0.5308,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 19638,
+        "corners": [
+          [
+            254,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "0b9111d5101a3f42383d5c51048583156e1e97b2e87179a72e62da97bfbb6f36",
+      "source": "assets/cat/休息_001_坐姿休息.png",
+      "output": "assets/cat-processed/休息_001_坐姿休息.png",
+      "default": false,
+      "width": 183,
+      "height": 218,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 169,
+        "height": 204
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 16303,
+        "transparentRatio": 0.4087,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 24269,
+        "corners": [
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "517db8ae6036d41fefbad24f33cc4b035615ecfd1be8fd8146f1f903999b4258",
+      "source": "assets/cat/休息_002_侧卧睡觉.png",
+      "output": "assets/cat-processed/休息_002_侧卧睡觉.png",
+      "default": false,
+      "width": 251,
+      "height": 177,
+      "contentBounds": {
+        "left": 0,
+        "top": 7,
+        "width": 244,
+        "height": 163
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 20683,
+        "transparentRatio": 0.4656,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 23283,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "00d4ff51dc18ec6c7453ffd120eece6a6ee7146fcd7c4457854cb9c67bbd2852",
+      "source": "assets/cat/休息_003_坐姿睡觉.png",
+      "output": "assets/cat-processed/休息_003_坐姿睡觉.png",
+      "default": false,
+      "width": 203,
+      "height": 248,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 189,
+        "height": 234
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 26998,
+        "transparentRatio": 0.5363,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 34473,
+        "corners": [
+          [
+            254,
+            254,
+            253,
+            0
+          ],
+          [
+            254,
+            253,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            252,
+            252,
+            252,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "db6096f5a18a18e040e1b147d416119d5a562501325d799bb68a8282c24fc97b",
+      "source": "assets/cat/休息_004_枕上侧睡.png",
+      "output": "assets/cat-processed/休息_004_枕上侧睡.png",
+      "default": false,
+      "width": 264,
+      "height": 176,
+      "contentBounds": {
+        "left": 0,
+        "top": 7,
+        "width": 264,
+        "height": 162
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 17475,
+        "transparentRatio": 0.3761,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 23334,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            252,
+            252,
+            252,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            252,
+            252,
+            252,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "fbba2c124181f37fc13d0a091b8eeac220264297f4e9282e7664dfebc0488875",
+      "source": "assets/cat/休息_005_枕上趴睡.png",
+      "output": "assets/cat-processed/休息_005_枕上趴睡.png",
+      "default": false,
+      "width": 179,
+      "height": 162,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 165,
+        "height": 148
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 12985,
+        "transparentRatio": 0.4478,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 19679,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            252,
+            252,
+            253,
+            0
+          ],
+          [
+            252,
+            252,
+            252,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "b05e04d25f25a98ecb2356f495fdab7f20b5a3e80ff63e3a905502e18a95a939",
+      "source": "assets/cat/休息_006_戴睡帽睡觉.png",
+      "output": "assets/cat-processed/休息_006_戴睡帽睡觉.png",
+      "default": false,
+      "width": 214,
+      "height": 178,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 200,
+        "height": 164
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 19040,
+        "transparentRatio": 0.4998,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 27793,
+        "corners": [
+          [
+            254,
+            254,
+            253,
+            0
+          ],
+          [
+            253,
+            252,
+            252,
+            0
+          ],
+          [
+            253,
+            253,
+            252,
+            0
+          ],
+          [
+            254,
+            254,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "b2f71e877c2f071857b0ffc61a9b65a6b841dcef63a4d445ed9d54524bf178f7",
+      "source": "assets/cat/休息_007_摇椅休息.png",
+      "output": "assets/cat-processed/休息_007_摇椅休息.png",
+      "default": false,
+      "width": 151,
+      "height": 207,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 137,
+        "height": 193
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 13180,
+        "transparentRatio": 0.4217,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 19674,
+        "corners": [
+          [
+            254,
+            254,
+            253,
+            0
+          ],
+          [
+            254,
+            253,
+            254,
+            0
+          ],
+          [
+            254,
+            254,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "df6b7460722f861d8afc106f8fdfe0b6938a2594808d6273c22215ca87625c32",
+      "source": "assets/cat/休息_008_床上睡觉.png",
+      "output": "assets/cat-processed/休息_008_床上睡觉.png",
+      "default": false,
+      "width": 214,
+      "height": 188,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 207,
+        "height": 174
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 17205,
+        "transparentRatio": 0.4276,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 22007,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "d390f666939860a8387a00b58d5ec9cf585af9e10eeb8be956dd1e6d8561309d",
+      "source": "assets/cat/休息_009_坐姿打盹.png",
+      "output": "assets/cat-processed/休息_009_坐姿打盹.png",
+      "default": false,
+      "width": 200,
+      "height": 228,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 186,
+        "height": 214
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 22021,
+        "transparentRatio": 0.4829,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 29220,
+        "corners": [
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            252,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "9eed1a7086c257097f247e089edcc553495af92fb44a312566417b5d26c5af90",
+      "source": "assets/cat/休息_010_趴地睡觉.png",
+      "output": "assets/cat-processed/休息_010_趴地睡觉.png",
+      "default": false,
+      "width": 191,
+      "height": 133,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 177,
+        "height": 125
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 12856,
+        "transparentRatio": 0.5061,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 17014,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "0b09cc8f8f792de494f2573c76228e2aed7f3179e19a55cdca7deb4199ed8ee6",
+      "source": "assets/cat/休息_011_伸懒腰.png",
+      "output": "assets/cat-processed/休息_011_伸懒腰.png",
+      "default": false,
+      "width": 172,
+      "height": 208,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 158,
+        "height": 194
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 17183,
+        "transparentRatio": 0.4803,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 23346,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "e6277cb97cd35a1a1accd4743a52cad75294d04b3e5c59e7c4b151c1976ec351",
+      "source": "assets/cat/待机_001_站立微笑.png",
+      "output": "assets/cat-processed/待机_001_站立微笑.png",
+      "default": false,
+      "width": 192,
+      "height": 292,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 178,
+        "height": 278
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 22021,
+        "transparentRatio": 0.3928,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 27745,
+        "corners": [
+          [
+            254,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            254,
+            254,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "ad91e77a27f44d059793d6a9ce8fa5f1a5c0f343e525b66381c51cdc319867dc",
+      "source": "assets/cat/待机_002_双手交叠站立.png",
+      "output": "assets/cat-processed/待机_002_双手交叠站立.png",
+      "default": false,
+      "width": 174,
+      "height": 270,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 160,
+        "height": 256
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 19392,
+        "transparentRatio": 0.4128,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 27759,
+        "corners": [
+          [
+            254,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "7cb5349fed21d0e4536697254ea1065c7b58b98db323e62a34b279e792a0586e",
+      "source": "assets/cat/待机_003_背手站立.png",
+      "output": "assets/cat-processed/待机_003_背手站立.png",
+      "default": false,
+      "width": 172,
+      "height": 324,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 158,
+        "height": 314
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 21676,
+        "transparentRatio": 0.389,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 30799,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            252,
+            252,
+            252,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "de2aa0968cb4d2d592b167ba7d173048cde496cd43d07433103a3b09572dda3f",
+      "source": "assets/cat/待机_004_自然站立.png",
+      "output": "assets/cat-processed/待机_004_自然站立.png",
+      "default": false,
+      "width": 202,
+      "height": 341,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 188,
+        "height": 327
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 24503,
+        "transparentRatio": 0.3557,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 33828,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "bb1b83e4d06a400a2fa40f855b4e0dd1d9d4a8d47c0c639352843dcc09e3f689",
+      "source": "assets/cat/待机_005_闭眼微笑.png",
+      "output": "assets/cat-processed/待机_005_闭眼微笑.png",
+      "default": false,
+      "width": 146,
+      "height": 248,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 132,
+        "height": 234
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 12895,
+        "transparentRatio": 0.3561,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 20502,
+        "corners": [
+          [
+            253,
+            253,
+            252,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "ae97be00ad05e601797e72da6d9237052f922a11ff6f54e4864e9c969498c7ce",
+      "source": "assets/cat/情绪_001_哭泣流泪.png",
+      "output": "assets/cat-processed/情绪_001_哭泣流泪.png",
+      "default": false,
+      "width": 148,
+      "height": 266,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 134,
+        "height": 252
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 12428,
+        "transparentRatio": 0.3157,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 22122,
+        "corners": [
+          [
+            253,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            254,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            254,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "d56750f062c764257e560b46fd6d18ea1bc631f54ca9e241ffb55ea4a73cec6b",
+      "source": "assets/cat/情绪_002_生气握拳.png",
+      "output": "assets/cat-processed/情绪_002_生气握拳.png",
+      "default": false,
+      "width": 198,
+      "height": 261,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 184,
+        "height": 247
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 20156,
+        "transparentRatio": 0.39,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 30854,
+        "corners": [
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "96b039989571f5405ccd9ae4713344ee406a07e8b84b62c87c078817d07539fb",
+      "source": "assets/cat/情绪_003_惊讶表情.png",
+      "output": "assets/cat-processed/情绪_003_惊讶表情.png",
+      "default": false,
+      "width": 177,
+      "height": 264,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 163,
+        "height": 250
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 19649,
+        "transparentRatio": 0.4205,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 29923,
+        "corners": [
+          [
+            254,
+            254,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "47e9f9b779ebf25d6516240f1374ec987f7fdec2f62880d92b608f2ba65e9ee5",
+      "source": "assets/cat/情绪_004_疑惑思考.png",
+      "output": "assets/cat-processed/情绪_004_疑惑思考.png",
+      "default": false,
+      "width": 175,
+      "height": 316,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 161,
+        "height": 302
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 24337,
+        "transparentRatio": 0.4401,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 31560,
+        "corners": [
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "56099abdc298c8e5384d25263707ec6244bb7292a8c602aff0d425e4123cedbf",
+      "source": "assets/cat/情绪_005_伤心低头.png",
+      "output": "assets/cat-processed/情绪_005_伤心低头.png",
+      "default": false,
+      "width": 170,
+      "height": 325,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 156,
+        "height": 311
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 21476,
+        "transparentRatio": 0.3887,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 31019,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            252,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "ca1b3bbcf7065f024a637c092d52ad49d09affe15e9477785d21e055ad8a5e64",
+      "source": "assets/cat/情绪_006_黄色问号思考.png",
+      "output": "assets/cat-processed/情绪_006_黄色问号思考.png",
+      "default": false,
+      "width": 243,
+      "height": 299,
+      "contentBounds": {
+        "left": 0,
+        "top": 7,
+        "width": 236,
+        "height": 285
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 37791,
+        "transparentRatio": 0.5201,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 42937,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "2775f7bc037608053b15376b2acf2356d49a96f604db4e7ab6fe2a25ca504c80",
+      "source": "assets/cat/情绪_007_寒冷发抖.png",
+      "output": "assets/cat-processed/情绪_007_寒冷发抖.png",
+      "default": false,
+      "width": 245,
+      "height": 296,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 231,
+        "height": 282
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 36147,
+        "transparentRatio": 0.4984,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 45212,
+        "corners": [
+          [
+            254,
+            253,
+            254,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "8173f6be3c8eddc3c121b390379a88b98d3f33de1903c4a9c2ed11327feaf362",
+      "source": "assets/cat/情绪_008_对话框思考.png",
+      "output": "assets/cat-processed/情绪_008_对话框思考.png",
+      "default": false,
+      "width": 183,
+      "height": 220,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 169,
+        "height": 206
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 22118,
+        "transparentRatio": 0.5494,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 24184,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            252,
+            252,
+            252,
+            0
+          ],
+          [
+            253,
+            253,
+            252,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "69a1b2f7b5e518683eaa438b60f6a1340c02ea567b207b9c7cf8e3d4d0dd91db",
+      "source": "assets/cat/情绪_009_慌张流汗.png",
+      "output": "assets/cat-processed/情绪_009_慌张流汗.png",
+      "default": false,
+      "width": 151,
+      "height": 193,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 137,
+        "height": 179
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 12189,
+        "transparentRatio": 0.4182,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 17925,
+        "corners": [
+          [
+            252,
+            252,
+            252,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            254,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "a1461ae230201281a885b4d2c34e3c7b6fe20fb5eaf211d477c687bd248c4628",
+      "source": "assets/cat/情绪_010_双手合十.png",
+      "output": "assets/cat-processed/情绪_010_双手合十.png",
+      "default": false,
+      "width": 144,
+      "height": 300,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 130,
+        "height": 286
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 14520,
+        "transparentRatio": 0.3361,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 24825,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "08f957ea364b669f3fdba4871eb91d5356f6a19fdb0e04a4976933e5559c2ac3",
+      "source": "assets/cat/情绪_011_捂嘴笑.png",
+      "output": "assets/cat-processed/情绪_011_捂嘴笑.png",
+      "default": false,
+      "width": 200,
+      "height": 261,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 186,
+        "height": 251
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 22901,
+        "transparentRatio": 0.4387,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 29518,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            252,
+            0
+          ],
+          [
+            254,
+            254,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "532a1395d37406227c62c8d406bd77d3f4135c88477988721e7afe0aca0895ee",
+      "source": "assets/cat/情绪_012_省略号思考.png",
+      "output": "assets/cat-processed/情绪_012_省略号思考.png",
+      "default": false,
+      "width": 197,
+      "height": 312,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 183,
+        "height": 298
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 29985,
+        "transparentRatio": 0.4878,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 37801,
+        "corners": [
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "1f5037b6eea0a67ac2ac442dddb8a0dc6421323ba9364d6af5f708a8515821a1",
+      "source": "assets/cat/情绪_013_黑色问号思考.png",
+      "output": "assets/cat-processed/情绪_013_黑色问号思考.png",
+      "default": false,
+      "width": 178,
+      "height": 307,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 164,
+        "height": 293
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 27342,
+        "transparentRatio": 0.5003,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 33868,
+        "corners": [
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "76dc1a42f1ed0afd2a5e4e6918cdf92d5a0836c7fa305a98e6d035a6c7f18639",
+      "source": "assets/cat/情绪_014_生气抱臂.png",
+      "output": "assets/cat-processed/情绪_014_生气抱臂.png",
+      "default": false,
+      "width": 194,
+      "height": 313,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 180,
+        "height": 299
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 29385,
+        "transparentRatio": 0.4839,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 38985,
+        "corners": [
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            254,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "7ac565d663681998fdcaf7288d30ab0b55d6aaf0a66d1bd5bb349806e78e52a2",
+      "source": "assets/cat/情绪_015_大哭.png",
+      "output": "assets/cat-processed/情绪_015_大哭.png",
+      "default": false,
+      "width": 148,
+      "height": 225,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 134,
+        "height": 211
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 12342,
+        "transparentRatio": 0.3706,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 19044,
+        "corners": [
+          [
+            253,
+            253,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "c89447aa9ef07cd302821fcf4861b16e8cbb7c64b89d4e5af7a06731494da073",
+      "source": "assets/cat/情绪_016_头晕眼花.png",
+      "output": "assets/cat-processed/情绪_016_头晕眼花.png",
+      "default": false,
+      "width": 172,
+      "height": 217,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 158,
+        "height": 203
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 17535,
+        "transparentRatio": 0.4698,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 26279,
+        "corners": [
+          [
+            254,
+            254,
+            253,
+            0
+          ],
+          [
+            252,
+            252,
+            253,
+            0
+          ],
+          [
+            252,
+            252,
+            252,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "36d6a1fd10add499e1efd580535ed517cf1f5c6e00361e19a08cd48e3ee12015",
+      "source": "assets/cat/情绪_017_生气冒汽.png",
+      "output": "assets/cat-processed/情绪_017_生气冒汽.png",
+      "default": false,
+      "width": 165,
+      "height": 223,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 151,
+        "height": 209
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 14542,
+        "transparentRatio": 0.3952,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 18763,
+        "corners": [
+          [
+            253,
+            254,
+            253,
+            0
+          ],
+          [
+            252,
+            252,
+            252,
+            0
+          ],
+          [
+            253,
+            253,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "1326a447b7e844b700e3e470381a2275079b17f92fa013bf00bb986b502be1af",
+      "source": "assets/cat/情绪_018_困倦站立.png",
+      "output": "assets/cat-processed/情绪_018_困倦站立.png",
+      "default": false,
+      "width": 128,
+      "height": 214,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 114,
+        "height": 200
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 10285,
+        "transparentRatio": 0.3755,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 17127,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "4ab8f99b2c9674303847f051588d2a8e8045aac0032838de0338cd78afff4823",
+      "source": "assets/cat/情绪_019_红色问号思考.png",
+      "output": "assets/cat-processed/情绪_019_红色问号思考.png",
+      "default": false,
+      "width": 159,
+      "height": 228,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 145,
+        "height": 214
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 17616,
+        "transparentRatio": 0.4859,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 24010,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            253,
+            252,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "f1e6d4cc6148f8f5b1f9af68c2a7c7cd99d9435258008f85a1467e3cec1055cf",
+      "source": "assets/cat/情绪_020_问号思考.png",
+      "output": "assets/cat-processed/情绪_020_问号思考.png",
+      "default": false,
+      "width": 218,
+      "height": 283,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 204,
+        "height": 269
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 32125,
+        "transparentRatio": 0.5207,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 38899,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            252,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "4a1d0a27f61f648b05b5ef9e857f036959c5d77a047721e85fd35894c48c0635",
+      "source": "assets/cat/情绪_021_哭泣.png",
+      "output": "assets/cat-processed/情绪_021_哭泣.png",
+      "default": false,
+      "width": 145,
+      "height": 252,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 131,
+        "height": 238
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 11871,
+        "transparentRatio": 0.3249,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 21124,
+        "corners": [
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            254,
+            253,
+            0
+          ],
+          [
+            252,
+            252,
+            252,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "01a35d39d65778966f034e5f12bae861e33fb2aec69df461dc95e33d741f5724",
+      "source": "assets/cat/情绪_022_抱臂生气.png",
+      "output": "assets/cat-processed/情绪_022_抱臂生气.png",
+      "default": false,
+      "width": 196,
+      "height": 255,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 182,
+        "height": 241
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 25190,
+        "transparentRatio": 0.504,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 33165,
+        "corners": [
+          [
+            254,
+            254,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            253,
+            0
+          ],
+          [
+            253,
+            252,
+            252,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "cb4c418cbd28e42295dcb7e8704e4eddbfd9cfdcd6eb885869c60fa0f6c4005b",
+      "source": "assets/cat/情绪_023_大笑.png",
+      "output": "assets/cat-processed/情绪_023_大笑.png",
+      "default": false,
+      "width": 171,
+      "height": 222,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 164,
+        "height": 213
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 19322,
+        "transparentRatio": 0.509,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 23840,
+        "corners": [
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            252,
+            252,
+            252,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "c8f6363ff28e599ccbfa6b52e10c67560061ffbc1f4e8e57f980cf022cf40512",
+      "source": "assets/cat/情绪_024_生气.png",
+      "output": "assets/cat-processed/情绪_024_生气.png",
+      "default": false,
+      "width": 155,
+      "height": 218,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 141,
+        "height": 204
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 14949,
+        "transparentRatio": 0.4424,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 23695,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "98d7a6aa7cba4744dbc9596d46c140927633a0794f5cc150eeff48d00c8950fa",
+      "source": "assets/cat/情绪_025_惊讶.png",
+      "output": "assets/cat-processed/情绪_025_惊讶.png",
+      "default": false,
+      "width": 154,
+      "height": 209,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 140,
+        "height": 195
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 14648,
+        "transparentRatio": 0.4551,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 20468,
+        "corners": [
+          [
+            254,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "7b43d1265bbf229f4b23a14e9c121bc2dcffe9d958fd50ed80322f6b366f0b85",
+      "source": "assets/cat/情绪_026_托腮思考.png",
+      "output": "assets/cat-processed/情绪_026_托腮思考.png",
+      "default": false,
+      "width": 127,
+      "height": 209,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 113,
+        "height": 195
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 10149,
+        "transparentRatio": 0.3824,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 17473,
+        "corners": [
+          [
+            254,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "8d55a72a4623480e18ea48e1d7d44213b9ca40a39e2c65a45eff12b6ffc29432",
+      "source": "assets/cat/情绪_027_害羞脸红.png",
+      "output": "assets/cat-processed/情绪_027_害羞脸红.png",
+      "default": false,
+      "width": 162,
+      "height": 196,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 148,
+        "height": 187
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 16940,
+        "transparentRatio": 0.5335,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 20179,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            252,
+            252,
+            252,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "f2a9abde3036680794885f6cb93bbd44e502d5c059e4a9033c6be8cdd484a78f",
+      "source": "assets/cat/特殊_001_背身站立.png",
+      "output": "assets/cat-processed/特殊_001_背身站立.png",
+      "default": false,
+      "width": 160,
+      "height": 271,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 146,
+        "height": 257
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 14800,
+        "transparentRatio": 0.3413,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 22844,
+        "corners": [
+          [
+            253,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "86d7299f8a11813ebefe5293cfab0ab19cf7f5a6d9c361cef5d7acca495ebb05",
+      "source": "assets/cat/特殊_002_桌前办公.png",
+      "output": "assets/cat-processed/特殊_002_桌前办公.png",
+      "default": false,
+      "width": 221,
+      "height": 309,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 207,
+        "height": 295
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 30083,
+        "transparentRatio": 0.4405,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 39278,
+        "corners": [
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            253,
+            0
+          ],
+          [
+            254,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "8f4daf40a6196eafbdba29187946bf325ed4f3f06dfa9d9772838bf3f863d29c",
+      "source": "assets/cat/特殊_003_举哑铃锻炼.png",
+      "output": "assets/cat-processed/特殊_003_举哑铃锻炼.png",
+      "default": false,
+      "width": 208,
+      "height": 312,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 194,
+        "height": 298
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 30847,
+        "transparentRatio": 0.4753,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 39165,
+        "corners": [
+          [
+            254,
+            254,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            252,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "cbfc11fb36b7a368a76fc00499647983a1e3551d7dcf21112c16ba273f9d4196",
+      "source": "assets/cat/特殊_004_戴耳机跳舞.png",
+      "output": "assets/cat-processed/特殊_004_戴耳机跳舞.png",
+      "default": false,
+      "width": 231,
+      "height": 307,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 217,
+        "height": 293
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 37197,
+        "transparentRatio": 0.5245,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 45976,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            252,
+            252,
+            252,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            252,
+            252,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "9a1bc852278766b3ff42b380b577133669fa076e89e7658afd215dda9d84052f",
+      "source": "assets/cat/特殊_005_站立用笔记本.png",
+      "output": "assets/cat-processed/特殊_005_站立用笔记本.png",
+      "default": false,
+      "width": 227,
+      "height": 257,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 213,
+        "height": 243
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 25855,
+        "transparentRatio": 0.4432,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 33725,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "55597a70640ba0c47c3ba7f96bce39773efa08c555af12e32e197e5fcb757398",
+      "source": "assets/cat/特殊_006_站立阅读.png",
+      "output": "assets/cat-processed/特殊_006_站立阅读.png",
+      "default": false,
+      "width": 200,
+      "height": 251,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 186,
+        "height": 237
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 19503,
+        "transparentRatio": 0.3885,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 29746,
+        "corners": [
+          [
+            254,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            254,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "03e05e32830af869c0b1d81c3362582ee55d4e1062c428cc3b8f7b82f691175d",
+      "source": "assets/cat/特殊_007_台式机办公.png",
+      "output": "assets/cat-processed/特殊_007_台式机办公.png",
+      "default": false,
+      "width": 194,
+      "height": 175,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 186,
+        "height": 161
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 15634,
+        "transparentRatio": 0.4605,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 21919,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "96083c45e0b3d9f9bd2d341decc1619c3ef47385f16cf9d73a9fd4903cf6dcb0",
+      "source": "assets/cat/特殊_008_坐着看书.png",
+      "output": "assets/cat-processed/特殊_008_坐着看书.png",
+      "default": false,
+      "width": 122,
+      "height": 178,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 108,
+        "height": 164
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 8278,
+        "transparentRatio": 0.3812,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 15396,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            252,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "da5c7de7c747d452cdad6e1edc9caa331bcc9e4d01a81914116ea2bd35742e13",
+      "source": "assets/cat/特殊_009_雨中站立.png",
+      "output": "assets/cat-processed/特殊_009_雨中站立.png",
+      "default": false,
+      "width": 164,
+      "height": 218,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 150,
+        "height": 204
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 21948,
+        "transparentRatio": 0.6139,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 30222,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "ac8ba4d0bc52b702e480c10b95046adbe962d09ed27470157573b905a2b0fde2",
+      "source": "assets/cat/特殊_010_使用笔记本.png",
+      "output": "assets/cat-processed/特殊_010_使用笔记本.png",
+      "default": false,
+      "width": 185,
+      "height": 185,
+      "contentBounds": {
+        "left": 0,
+        "top": 7,
+        "width": 178,
+        "height": 171
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 18813,
+        "transparentRatio": 0.5497,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 25200,
+        "corners": [
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "c624c6e97b6316efa4ef27c30409934103d622b177df55c414189348db2f15f4",
+      "source": "assets/cat/特殊_011_钓鱼.png",
+      "output": "assets/cat-processed/特殊_011_钓鱼.png",
+      "default": false,
+      "width": 170,
+      "height": 182,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 156,
+        "height": 168
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 16075,
+        "transparentRatio": 0.5196,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 22109,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            254,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "a146b5f5553c1ec95a6796d30f3dd9b9cd83b9be6010de9e53594cfbf3cdf82d",
+      "source": "assets/cat/特殊_012_举杠铃.png",
+      "output": "assets/cat-processed/特殊_012_举杠铃.png",
+      "default": false,
+      "width": 208,
+      "height": 197,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 194,
+        "height": 183
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 22236,
+        "transparentRatio": 0.5427,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 31047,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            252,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "97875c68b662a5cb985e5c67d56c9d6277128e09a530d59380ada90d32578352",
+      "source": "assets/cat/特殊_013_使用笔记本电脑.png",
+      "output": "assets/cat-processed/特殊_013_使用笔记本电脑.png",
+      "default": false,
+      "width": 143,
+      "height": 180,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 129,
+        "height": 166
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 10194,
+        "transparentRatio": 0.396,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 17824,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "dac8f76568042a645fbfe225ba1ab9e3508463016ea18c45778a93e7852ad65f",
+      "source": "assets/cat/特殊_014_踢足球.png",
+      "output": "assets/cat-processed/特殊_014_踢足球.png",
+      "default": false,
+      "width": 167,
+      "height": 211,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 153,
+        "height": 198
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 18983,
+        "transparentRatio": 0.5387,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 23850,
+        "corners": [
+          [
+            254,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            252,
+            252,
+            252,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "4df9a722a25388060b4d117e4f04420fde659f0445403b0b298768f958fe7eba",
+      "source": "assets/cat/特殊_015_阅读书本.png",
+      "output": "assets/cat-processed/特殊_015_阅读书本.png",
+      "default": false,
+      "width": 125,
+      "height": 195,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 111,
+        "height": 183
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 10154,
+        "transparentRatio": 0.4166,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 15949,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "1d0e71bd7e543a94b61cbc0561f31c2731622fa9b4a8346b6aaabedc462ea081",
+      "source": "assets/cat/特殊_016_洗澡.png",
+      "output": "assets/cat-processed/特殊_016_洗澡.png",
+      "default": false,
+      "width": 152,
+      "height": 187,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 138,
+        "height": 173
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 13349,
+        "transparentRatio": 0.4696,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 19357,
+        "corners": [
+          [
+            253,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "4e9d3a352e9ada03dfd4e099b5b17e11b1f1022642d2e56c10d30625e084efe0",
+      "source": "assets/cat/移动_001_跳跃欢呼.png",
+      "output": "assets/cat-processed/移动_001_跳跃欢呼.png",
+      "default": false,
+      "width": 180,
+      "height": 191,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 166,
+        "height": 177
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 18747,
+        "transparentRatio": 0.5453,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 25106,
+        "corners": [
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            252,
+            0
+          ],
+          [
+            252,
+            252,
+            252,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "068394b166811e8956eefec62f9a59e29d60ed2a2d5c5ee311d2919a248e1f1f",
+      "source": "assets/cat/移动_002_向前行走.png",
+      "output": "assets/cat-processed/移动_002_向前行走.png",
+      "default": false,
+      "width": 108,
+      "height": 179,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 94,
+        "height": 165
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 8237,
+        "transparentRatio": 0.4261,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 14866,
+        "corners": [
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            252,
+            252,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "8b5165caa59f7494595059eb110b5b9ed3e88a14ab9841b20b9c09cb7228c265",
+      "source": "assets/cat/移动_003_快速奔跑.png",
+      "output": "assets/cat-processed/移动_003_快速奔跑.png",
+      "default": false,
+      "width": 177,
+      "height": 185,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 164,
+        "height": 176
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 19637,
+        "transparentRatio": 0.5997,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 23884,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "09ab265aaebaddab404f698ac2131ea32481c2a5cced42b7051f31ee7dfec446",
+      "source": "assets/cat/移动_004_摆臂行走.png",
+      "output": "assets/cat-processed/移动_004_摆臂行走.png",
+      "default": false,
+      "width": 204,
+      "height": 309,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 190,
+        "height": 295
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 30681,
+        "transparentRatio": 0.4867,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 42512,
+        "corners": [
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "3112336af0927d665a85661de0c653a62e3f835f7feb6c55e5322e9ecefe09ad",
+      "source": "assets/cat/移动_005_正面行走.png",
+      "output": "assets/cat-processed/移动_005_正面行走.png",
+      "default": false,
+      "width": 140,
+      "height": 247,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 126,
+        "height": 233
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 15284,
+        "transparentRatio": 0.442,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 22553,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "ffa14e988e6cd5e855d57698e5139a65d70e079e5f731df3872f3f10f4757052",
+      "source": "assets/cat/移动_006_奔跑.png",
+      "output": "assets/cat-processed/移动_006_奔跑.png",
+      "default": false,
+      "width": 159,
+      "height": 196,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 145,
+        "height": 182
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 15876,
+        "transparentRatio": 0.5094,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 22267,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            252,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "d3174823f6bf11910aea902367aad0d59d626b45b3b811757ea40b30739ef13e",
+      "source": "assets/cat/移动_007_摆臂走路.png",
+      "output": "assets/cat-processed/移动_007_摆臂走路.png",
+      "default": false,
+      "width": 200,
+      "height": 297,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 186,
+        "height": 283
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 24977,
+        "transparentRatio": 0.4205,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 32313,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            253,
+            252,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "d72b5d93dc906f54d74c01edad270c46e39927c2a5bcb6f4187536f67baf59e5",
+      "source": "assets/cat/移动_008_快速奔跑_02.png",
+      "output": "assets/cat-processed/移动_008_快速奔跑_02.png",
+      "default": false,
+      "width": 183,
+      "height": 210,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 169,
+        "height": 196
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 22278,
+        "transparentRatio": 0.5797,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 27975,
+        "corners": [
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "70bcf15abeaac35ec558d858e772ffe0fb5862c65bb80289785698cd25a61110",
+      "source": "assets/cat/饮食_001_吃爆米花.png",
+      "output": "assets/cat-processed/饮食_001_吃爆米花.png",
+      "default": false,
+      "width": 173,
+      "height": 283,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 159,
+        "height": 269
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 18443,
+        "transparentRatio": 0.3767,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 29001,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "3ac0c94878174743e72623cc19382ad745c596476ae3e6331b4f9bcc6b6f68cf",
+      "source": "assets/cat/饮食_002_吸管喝饮料.png",
+      "output": "assets/cat-processed/饮食_002_吸管喝饮料.png",
+      "default": false,
+      "width": 164,
+      "height": 283,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 150,
+        "height": 269
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 17231,
+        "transparentRatio": 0.3713,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 27609,
+        "corners": [
+          [
+            254,
+            253,
+            253,
+            0
+          ],
+          [
+            252,
+            252,
+            252,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            252,
+            252,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "a4ed11e34d5f53580fd4cf4286f2fad435f718b8abce1582ca4b6dd1affd0543",
+      "source": "assets/cat/饮食_003_喝吸管饮料.png",
+      "output": "assets/cat-processed/饮食_003_喝吸管饮料.png",
+      "default": false,
+      "width": 172,
+      "height": 298,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 158,
+        "height": 284
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 20128,
+        "transparentRatio": 0.3927,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 30820,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "d9cfe6843a361664b8ebb69ddd7fc8222352f32b5d0ffbabd4dd8d1aecc219f0",
+      "source": "assets/cat/饮食_004_吃汉堡.png",
+      "output": "assets/cat-processed/饮食_004_吃汉堡.png",
+      "default": false,
+      "width": 120,
+      "height": 193,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 106,
+        "height": 179
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 9027,
+        "transparentRatio": 0.3898,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 16287,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "a766db5645a7cc8553c793d90e886438f88d0ba123d389a3383976d2757a978d",
+      "source": "assets/cat/饮食_005_捧汉堡进食.png",
+      "output": "assets/cat-processed/饮食_005_捧汉堡进食.png",
+      "default": false,
+      "width": 190,
+      "height": 283,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 176,
+        "height": 269
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 22602,
+        "transparentRatio": 0.4203,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 31430,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "35f6bece4a1084c99aae606bbf390fb224b10ef8e32d633c7b96148f7178c041",
+      "source": "assets/cat/饮食_006_双手捧杯喝水.png",
+      "output": "assets/cat-processed/饮食_006_双手捧杯喝水.png",
+      "default": false,
+      "width": 117,
+      "height": 190,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 103,
+        "height": 176
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 7771,
+        "transparentRatio": 0.3496,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 14918,
+        "corners": [
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            252,
+            253,
+            252,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "bf76a139f9d851d50a39cbe1240aeb9b5e2404806e04383ae7062ad182daaf4c",
+      "source": "assets/cat/饮食_007_吃饼干.png",
+      "output": "assets/cat-processed/饮食_007_吃饼干.png",
+      "default": false,
+      "width": 163,
+      "height": 269,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 149,
+        "height": 255
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 16054,
+        "transparentRatio": 0.3661,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 25812,
+        "corners": [
+          [
+            253,
+            252,
+            252,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            253,
+            0
+          ],
+          [
+            253,
+            252,
+            252,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "ef6cbfeb3462025557c1fa27ef2046078158f982f54c41759326b388fe5a234e",
+      "source": "assets/cat/饮食_008_喝瓶装水.png",
+      "output": "assets/cat-processed/饮食_008_喝瓶装水.png",
+      "default": false,
+      "width": 159,
+      "height": 270,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 145,
+        "height": 256
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 15588,
+        "transparentRatio": 0.3631,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 25562,
+        "corners": [
+          [
+            253,
+            252,
+            252,
+            0
+          ],
+          [
+            253,
+            253,
+            252,
+            0
+          ],
+          [
+            253,
+            253,
+            252,
+            0
+          ],
+          [
+            254,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "bc2c40516cfddd95772747f73703a199fb3785995016cf5500173631f92cf102",
+      "source": "assets/cat/饮食_009_吃汉堡_02.png",
+      "output": "assets/cat-processed/饮食_009_吃汉堡_02.png",
+      "default": false,
+      "width": 119,
+      "height": 197,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 105,
+        "height": 183
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 8167,
+        "transparentRatio": 0.3484,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 15641,
+        "corners": [
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ],
+          [
+            254,
+            254,
+            254,
+            0
+          ]
+        ]
+      }
+    },
+    {
+      "inputHash": "bbb68c9298c5b6c6c751ec057b3b101deb934c657a1cbb30378acce245bc04c2",
+      "source": "assets/cat/饮食_010_吸管喝红色饮料.png",
+      "output": "assets/cat-processed/饮食_010_吸管喝红色饮料.png",
+      "default": false,
+      "width": 119,
+      "height": 201,
+      "contentBounds": {
+        "left": 7,
+        "top": 7,
+        "width": 105,
+        "height": 187
+      },
+      "transparency": {
+        "usable": true,
+        "transparentPixels": 8725,
+        "transparentRatio": 0.3648,
+        "sourceHadAlpha": false,
+        "removedEdgePixels": 16008,
+        "corners": [
+          [
+            253,
+            254,
+            254,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ],
+          [
+            253,
+            254,
+            253,
+            0
+          ],
+          [
+            253,
+            253,
+            253,
+            0
+          ]
+        ]
+      }
+    }
+  ]
+}

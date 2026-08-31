@@ -1,0 +1,1551 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>康康熊桌面宠物</title>
+  <style>
+    :root {
+      --pet-size: 120px;
+      --pet-width: 90px;
+      --controls-height: 42px;
+      --controls-bottom: 8px;
+      --ink: #2f2b26;
+      --surface: rgba(255, 255, 255, 0.9);
+      --accent: #3d7c70;
+      --warm: #f1b24a;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: transparent;
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      display: block;
+    }
+
+    #stage {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      cursor: default;
+    }
+
+    #stage.pet-hit {
+      cursor: grab;
+    }
+
+    #stage.dragging {
+      cursor: grabbing;
+    }
+
+    #bubble {
+      position: absolute;
+      left: 50%;
+      bottom: calc(var(--controls-height) + var(--pet-size) + 6px);
+      width: min(240px, calc(100% - 12px));
+      max-width: 240px;
+      box-sizing: border-box;
+      min-height: 36px;
+      transform: translateX(-50%) translateY(4px);
+      padding: 9px 12px;
+      border-radius: 8px;
+      background: var(--surface);
+      box-shadow: 0 10px 28px rgba(54, 43, 27, 0.18);
+      color: var(--ink);
+      font-size: 13px;
+      line-height: 1.35;
+      text-align: center;
+      opacity: 0;
+      pointer-events: none;
+      max-height: 300px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      transition: opacity 200ms ease-out, transform 220ms cubic-bezier(.22, 1, .36, 1);
+    }
+
+    #bubble.show {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    #bubble.reminder {
+      border: 1px solid #d48932;
+      background: #fff7e6;
+      box-shadow: 0 12px 28px rgba(125, 73, 21, 0.3);
+    }
+
+    #petWrap {
+      position: relative;
+      width: var(--pet-width);
+      height: var(--pet-size);
+      position: absolute;
+      left: 50%;
+      bottom: var(--controls-height);
+      transform: translateX(-50%);
+    }
+
+    #petMotion {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      place-items: center;
+      filter: drop-shadow(0 4px 5px rgba(40, 34, 28, 0.18));
+    }
+
+    #petMotion.bounce {
+      animation: bounce 520ms cubic-bezier(.22, 1.15, .38, 1);
+    }
+
+    #petMotion.wiggle {
+      animation: wiggle 560ms ease;
+    }
+
+    #video,
+    #image {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      object-position: center bottom;
+      background: transparent;
+      pointer-events: none;
+      will-change: opacity, transform;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    #placeholder {
+      position: relative;
+      width: 86%;
+      height: 86%;
+    }
+
+    .dog-head {
+      position: absolute;
+      inset: 22% 13% 12%;
+      border-radius: 46% 46% 42% 42%;
+      background: #f4d08b;
+      box-shadow: inset -14px -18px 0 rgba(179, 118, 62, 0.18);
+    }
+
+    .ear {
+      position: absolute;
+      top: 18%;
+      width: 30%;
+      height: 43%;
+      border-radius: 42% 42% 50% 50%;
+      background: #8d5f3b;
+    }
+
+    .ear.left {
+      left: 6%;
+      transform: rotate(-18deg);
+    }
+
+    .ear.right {
+      right: 6%;
+      transform: rotate(18deg);
+    }
+
+    .eye {
+      position: absolute;
+      top: 45%;
+      width: 9%;
+      height: 9%;
+      border-radius: 50%;
+      background: #2f2b26;
+    }
+
+    .eye.left {
+      left: 35%;
+    }
+
+    .eye.right {
+      right: 35%;
+    }
+
+    .snout {
+      position: absolute;
+      left: 50%;
+      bottom: 26%;
+      width: 34%;
+      height: 26%;
+      transform: translateX(-50%);
+      border-radius: 48%;
+      background: #fff5dc;
+    }
+
+    .nose {
+      position: absolute;
+      left: 50%;
+      top: 10%;
+      width: 30%;
+      height: 24%;
+      transform: translateX(-50%);
+      border-radius: 50%;
+      background: #2f2b26;
+    }
+
+    .mouth {
+      position: absolute;
+      left: 50%;
+      bottom: 22%;
+      width: 24%;
+      height: 18%;
+      transform: translateX(-50%);
+      border-bottom: 3px solid #2f2b26;
+      border-radius: 0 0 40px 40px;
+    }
+
+    #buttons {
+      position: absolute;
+      left: 50%;
+      bottom: var(--controls-bottom);
+      display: flex;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      gap: 5px;
+      transform: translateX(-50%);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 180ms ease, visibility 0s linear 180ms;
+      pointer-events: none;
+    }
+
+    #stage.pet-hit #buttons,
+    #stage.controls-hit #buttons,
+    #buttons:focus-within {
+      opacity: 1;
+      visibility: visible;
+      transition-delay: 0s;
+      pointer-events: auto;
+    }
+
+    .pet-button {
+      width: 26px;
+      height: 26px;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.94);
+      box-shadow: 0 8px 18px rgba(58, 46, 29, 0.18);
+      color: var(--ink);
+      font-family: "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .pet-button:hover {
+      background: #fff8e8;
+      color: #7c4c15;
+    }
+
+    .interaction-group {
+      position: relative;
+      display: flex;
+    }
+
+    .pet-button.settings-button {
+      background: rgba(47, 43, 38, 0.82);
+      color: white;
+      font-size: 14px;
+    }
+
+    .pet-button.settings-button:hover {
+      background: var(--accent);
+      color: white;
+    }
+
+    .interaction-submenu {
+      position: absolute;
+      bottom: 32px;
+      left: 50%;
+      display: grid;
+      min-width: 132px;
+      padding: 4px;
+      border: 1px solid rgba(75, 61, 43, 0.14);
+      border-radius: 6px;
+      background: #fff;
+      box-shadow: 0 10px 24px rgba(58, 46, 29, 0.2);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translateX(-50%) translateY(4px);
+      transition: opacity 160ms ease, visibility 0s linear 160ms, transform 160ms ease;
+    }
+
+    .interaction-group.menu-open .interaction-submenu {
+      visibility: visible;
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateX(-50%) translateY(0);
+      transition-delay: 0s;
+    }
+
+    .interaction-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 28px;
+      padding: 4px 7px;
+      border: 0;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--ink);
+      font-family: inherit;
+      font-size: 12px;
+      line-height: 1.2;
+      text-align: left;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .interaction-menu-item:hover,
+    .interaction-menu-item:focus-visible {
+      outline: 0;
+      background: #fff2d4;
+      color: #7c4c15;
+    }
+
+    .interaction-menu-item > span[aria-hidden="true"] {
+      flex: 0 0 16px;
+      width: 16px;
+      color: initial;
+      font-family: "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+      font-size: 14px;
+      line-height: 1;
+      text-align: center;
+    }
+
+    .no-drag {
+      -webkit-app-region: no-drag;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0) scale(1); }
+      35% { transform: translateY(-16px) scale(1.04, 0.96); }
+      60% { transform: translateY(4px) scale(0.98, 1.02); }
+    }
+
+    @keyframes wiggle {
+      0%, 100% { transform: rotate(0deg); }
+      20% { transform: rotate(-6deg); }
+      40% { transform: rotate(5deg); }
+      60% { transform: rotate(-4deg); }
+      80% { transform: rotate(3deg); }
+    }
+  </style>
+</head>
+<body>
+  <main id="stage">
+    <div id="bubble">上传康康熊素材后，我会变成你熟悉的样子。</div>
+    <section id="petWrap" aria-label="康康熊桌宠">
+      <div id="petMotion">
+        <video id="video" class="hidden" autoplay loop muted playsinline preload="auto"></video>
+        <img id="image" class="hidden" alt="康康熊素材">
+        <div id="placeholder">
+          <div class="ear left"></div>
+          <div class="ear right"></div>
+          <div class="dog-head">
+            <div class="eye left"></div>
+            <div class="eye right"></div>
+            <div class="snout">
+              <div class="nose"></div>
+              <div class="mouth"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <nav id="buttons" class="no-drag" aria-label="互动按钮"></nav>
+  </main>
+
+  <script>
+    const desktopPetApi = window.petApi;
+
+    const stage = document.querySelector('#stage');
+    const bubble = document.querySelector('#bubble');
+    const petWrap = document.querySelector('#petWrap');
+    const petMotion = document.querySelector('#petMotion');
+    const video = document.querySelector('#video');
+    const image = document.querySelector('#image');
+    const placeholder = document.querySelector('#placeholder');
+    const buttons = document.querySelector('#buttons');
+
+    let config = null;
+    let bubbleTimer = null;
+    let reminderQueue = [];
+    let reminderVisible = false;
+    let idleTimer = null;
+    let dragState = null;
+    let suppressPetClick = false;
+    let clickThrough = null;
+    let lastPointerPosition = null;
+    let bubbleLayoutFrame = null;
+    let bubbleRevealFrame = null;
+    let bubbleCollapseTimer = null;
+    let bubbleTransitionId = 0;
+    let bubbleLayoutReserved = false;
+    let menuLayoutFrame = null;
+    let layoutSignature = '';
+    let pendingLayout = null;
+    let interactionMenuSignature = '';
+    let runtimeAssetId = null;
+    let forceReplay = false;
+    let lastActionKey = null;
+    let lastCategory = 'calm';
+    let sleepRunRemaining = 0;
+    let displayedAssetId = null;
+    let idleRoutine = [];
+    let routineName = 'settle';
+    let startupPlayed = false;
+    let petVisible = true;
+    const preloadedVideos = new Map();
+    const MAX_PRELOADED_VIDEOS = 4;
+    const hitCanvas = document.createElement('canvas');
+    const hitContext = hitCanvas.getContext('2d', { willReadFrequently: true });
+    const measureCanvas = document.createElement('canvas');
+    const measureContext = measureCanvas.getContext('2d', { willReadFrequently: true });
+    const ALPHA_HIT_THRESHOLD = 24;
+    const BUBBLE_ALPHA_THRESHOLD = 48;
+    const BUBBLE_BODY_GAP = 10;
+    const BUBBLE_TRANSITION_MS = 240;
+
+    function pick(list, fallback) {
+      const source = Array.isArray(list) && list.length ? list : [fallback];
+      return source[Math.floor(Math.random() * source.length)];
+    }
+
+    const REST_ACTIONS = new Set(['sleep', 'idle', 'think', 'happy']);
+
+    const ACTION_CATEGORY = {
+      sleep: 'sleepy',
+      idle: 'calm',
+      happy: 'social',
+      greet: 'social',
+      eat: 'calm',
+      walk: 'active',
+      work: 'alert',
+      clean: 'calm',
+      exercise: 'active',
+      think: 'alert',
+      surprise: 'alert',
+      sad: 'social',
+      angry: 'alert',
+      curl: 'sleepy',
+      yawn: 'sleepy',
+      stretch: 'transition',
+      groom: 'grooming',
+      scratch: 'grooming',
+      rub: 'social',
+      drink: 'calm',
+      look: 'alert',
+      ear: 'alert',
+      sit: 'alert',
+      hunt: 'active',
+      play: 'active',
+      sharpen: 'active',
+      sulk: 'social',
+      defensive: 'alert'
+    };
+
+    const ACTION_DURATIONS = {
+      sleep: [18000, 42000],
+      curl: [5200, 8200],
+      yawn: [5200, 7600],
+      stretch: [5200, 7600],
+      groom: [6200, 11000],
+      scratch: [5200, 8500],
+      rub: [5200, 8200],
+      eat: [7200, 13000],
+      drink: [6200, 9800],
+      look: [12000, 26000],
+      ear: [4200, 7600],
+      sit: [14000, 32000],
+      walk: [5200, 9000],
+      hunt: [5600, 9500],
+      play: [6200, 10500],
+      sharpen: [6200, 9600],
+      sulk: [5400, 9000],
+      defensive: [4800, 7600],
+      greet: [4400, 7600]
+    };
+
+    const ROUTINE_WEIGHTS = {
+      sleepy: [['deepRest', 62], ['sleepCycle', 22], ['wakeSlowly', 10], ['groomCycle', 5], ['quietWatch', 1]],
+      grooming: [['loafWatch', 34], ['deepRest', 24], ['groomCycle', 22], ['stillWatch', 12], ['scratchPost', 5], ['patrol', 3]],
+      alert: [['stillWatch', 38], ['loafWatch', 28], ['groomCycle', 16], ['deepRest', 10], ['patrol', 5], ['huntCycle', 2], ['scratchPost', 1]],
+      active: [['coolDown', 44], ['loafWatch', 24], ['groomCycle', 16], ['stillWatch', 10], ['scratchPost', 4], ['patrol', 2]],
+      social: [['loafWatch', 32], ['groomCycle', 26], ['deepRest', 22], ['stillWatch', 13], ['sulkMoment', 5], ['patrol', 2]],
+      calm: [['deepRest', 42], ['loafWatch', 28], ['stillWatch', 16], ['groomCycle', 10], ['drinkBreak', 3], ['huntCycle', 1]]
+    };
+
+    const STARTUP_ACTION_WEIGHTS = [
+      ['greet', 24],
+      ['idle', 20],
+      ['happy', 18],
+      ['work', 14],
+      ['think', 10],
+      ['walk', 8],
+      ['eat', 6]
+    ];
+
+    function randomBetween(min, max) {
+      return Math.round(min + Math.random() * (max - min));
+    }
+
+    function weightedPick(entries) {
+      const total = entries.reduce((sum, item) => sum + item[1], 0);
+      let cursor = Math.random() * total;
+      for (const [value, weight] of entries) {
+        cursor -= weight;
+        if (cursor <= 0) return value;
+      }
+      return entries[entries.length - 1]?.[0];
+    }
+
+    function assetsForAction(actionKey) {
+      if (!config?.assets?.length) return [];
+      return config.assets.filter((asset) => asset.enabled !== false && asset.actionKey === actionKey);
+    }
+
+    function assetsForButton(button) {
+      if (!button?.id || !config?.assets?.length) return [];
+      return config.assets.filter((asset) => asset.enabled !== false && Array.isArray(asset.interactionButtonIds) && asset.interactionButtonIds.includes(button.id));
+    }
+
+    function isStillAsset(asset) {
+      return asset?.behavior === 'still' || /^静止/.test(asset?.name || '');
+    }
+
+    function isRestAction(actionKey) {
+      return REST_ACTIONS.has(actionKey);
+    }
+
+    function currentAsset() {
+      return config?.assets?.find((asset) => asset.enabled !== false && asset.id === displayedAssetId) || null;
+    }
+
+    function pickAssetForActions(actionKeys, options = {}) {
+      const candidatePool = Array.isArray(options.assetPool) ? options.assetPool.filter(Boolean) : [];
+      const pools = candidatePool.length
+        ? [candidatePool]
+        : actionKeys
+          .map((actionKey) => assetsForAction(actionKey))
+          .filter((pool) => pool.length);
+      let pool = pools.length ? pick(pools, []) : (config?.assets || []).filter((asset) => asset.enabled !== false);
+
+      if (options.preferStill) {
+        const stillPool = pool.filter(isStillAsset);
+        const active = currentAsset();
+        if (
+          active &&
+          isStillAsset(active) &&
+          actionKeys.includes(active.actionKey) &&
+          Math.random() < (options.stayChance ?? 0.72)
+        ) {
+          return active;
+        }
+        if (stillPool.length) pool = [...stillPool, ...stillPool, ...stillPool, ...pool];
+      }
+
+      const freshPool = options.allowSame ? pool : pool.filter((asset) => asset.id !== displayedAssetId);
+      return pick(freshPool.length ? freshPool : pool, null);
+    }
+
+    function categoryForAction(actionKey) {
+      return ACTION_CATEGORY[actionKey] || 'calm';
+    }
+
+    function repeat(actionKey, min, max) {
+      return Array.from({ length: randomBetween(min, max) }, () => actionKey);
+    }
+
+    function maybe(actionKey, probability = 0.5) {
+      return Math.random() < probability ? [actionKey] : [];
+    }
+
+    function makeRoutine(name) {
+      switch (name) {
+        case 'deepRest':
+          return [
+            ...(lastCategory === 'sleepy' ? [] : maybe('curl', 0.72)),
+            ...repeat('sleep', 6, 16),
+            ...maybe('sleep', 0.75),
+            ...maybe('look', 0.2),
+            weightedPick([['sleep', 70], ['yawn', 18], ['groom', 8], ['sit', 4]])
+          ];
+        case 'sleepCycle':
+          return [
+            ...(lastCategory === 'sleepy' ? [] : maybe('curl', 0.82)),
+            ...repeat('sleep', 5, 12),
+            ...maybe('yawn', 0.55),
+            ...maybe('stretch', 0.7),
+            weightedPick([['sleep', 34], ['groom', 30], ['look', 18], ['sit', 12], ['drink', 6]])
+          ];
+        case 'wakeSlowly':
+          return [
+            weightedPick([['sleep', 38], ['yawn', 34], ['look', 16], ['stretch', 12]]),
+            weightedPick([['stretch', 72], ['groom', 14], ['look', 10], ['sit', 4]]),
+            weightedPick([['groom', 34], ['look', 24], ['sit', 22], ['drink', 10], ['stretch', 6], ['sleep', 4]])
+          ];
+        case 'loafWatch':
+          return [
+            ...repeat('sit', 3, 8),
+            weightedPick([['sit', 42], ['look', 36], ['groom', 12], ['sleep', 10]]),
+            weightedPick([['sleep', 36], ['look', 30], ['groom', 22], ['drink', 8], ['walk', 4]])
+          ];
+        case 'stillWatch':
+          return [
+            ...repeat('look', 3, 8),
+            weightedPick([['look', 46], ['sit', 30], ['ear', 14], ['groom', 8], ['walk', 2]]),
+            weightedPick([['sit', 38], ['sleep', 28], ['look', 22], ['groom', 12]])
+          ];
+        case 'groomCycle':
+          return [
+            ...repeat('groom', 2, 4),
+            ...maybe('scratch', 0.35),
+            weightedPick([['sit', 28], ['sleep', 26], ['groom', 22], ['look', 16], ['sharpen', 8]])
+          ];
+        case 'quietWatch':
+          return [
+            ...repeat(weightedPick([['look', 54], ['sit', 36], ['sleep', 10]]), 2, 5),
+            weightedPick([['look', 34], ['sit', 26], ['groom', 16], ['sleep', 14], ['ear', 6], ['drink', 3], ['sulk', 1]])
+          ];
+        case 'patrol':
+          return [
+            weightedPick([['look', 45], ['sit', 25], ['walk', 30]]),
+            'walk',
+            weightedPick([['sit', 30], ['look', 28], ['groom', 22], ['sleep', 8], ['sharpen', 7], ['hunt', 3], ['yawn', 2]])
+          ];
+        case 'huntCycle':
+          return [
+            weightedPick([['look', 46], ['sit', 30], ['ear', 18], ['walk', 6]]),
+            'hunt',
+            weightedPick([['hunt', 28], ['look', 26], ['play', 18], ['walk', 16], ['defensive', 12]]),
+            weightedPick([['groom', 42], ['sit', 24], ['look', 20], ['walk', 6], ['sharpen', 4], ['yawn', 4]])
+          ];
+        case 'playCycle':
+          return [
+            weightedPick([['look', 40], ['hunt', 30], ['walk', 30]]),
+            weightedPick([['play', 65], ['hunt', 25], ['walk', 10]]),
+            weightedPick([['groom', 46], ['look', 30], ['walk', 16], ['yawn', 8]])
+          ];
+        case 'coolDown':
+          return [
+            weightedPick([['look', 32], ['walk', 24], ['groom', 24], ['sharpen', 8], ['yawn', 12]]),
+            weightedPick([['groom', 38], ['sit', 24], ['look', 18], ['drink', 10], ['yawn', 10]]),
+            weightedPick([['sleep', 42], ['sit', 22], ['look', 18], ['groom', 14], ['drink', 4]])
+          ];
+        case 'drinkBreak':
+          return [
+            weightedPick([['sit', 34], ['look', 30], ['groom', 22], ['walk', 14]]),
+            'drink',
+            weightedPick([['sleep', 34], ['groom', 30], ['sit', 24], ['look', 12]])
+          ];
+        case 'scratchPost':
+          return [
+            weightedPick([['look', 36], ['walk', 24], ['sit', 20], ['groom', 20]]),
+            'sharpen',
+            weightedPick([['groom', 38], ['look', 28], ['walk', 16], ['sit', 10], ['play', 8]])
+          ];
+        case 'sulkMoment':
+          return [
+            weightedPick([['look', 42], ['sit', 30], ['ear', 18], ['groom', 10]]),
+            'sulk',
+            weightedPick([['groom', 40], ['look', 28], ['sit', 18], ['sleep', 14]])
+          ];
+        default:
+          return ['look', weightedPick([['sleep', 46], ['sit', 28], ['groom', 20], ['look', 6]])];
+      }
+    }
+
+    function chooseRoutineName() {
+      if (lastCategory === 'sleepy') {
+        return weightedPick(ROUTINE_WEIGHTS.sleepy);
+      }
+      const weights = ROUTINE_WEIGHTS[lastCategory] || ROUTINE_WEIGHTS.calm;
+      return weightedPick(weights);
+    }
+
+    function nextIdleAction() {
+      while (!idleRoutine.length) {
+        routineName = chooseRoutineName();
+        idleRoutine = makeRoutine(routineName).filter((actionKey) => assetsForAction(actionKey).length);
+
+        if (!idleRoutine.length) {
+          idleRoutine = ['idle', 'sleep', 'happy', 'think', 'work', 'eat', 'walk'].filter((actionKey) => assetsForAction(actionKey).length);
+        }
+      }
+
+      const nextAction = idleRoutine.shift();
+      if (lastCategory === 'sleepy' && ['play', 'hunt', 'walk', 'sharpen', 'defensive'].includes(nextAction)) {
+        idleRoutine.unshift(nextAction);
+        return weightedPick([['sleep', 44], ['stretch', 30], ['look', 18], ['sit', 8]]);
+      }
+
+      if (lastCategory === 'active' && nextAction === 'sleep') {
+        idleRoutine.unshift('sleep');
+        if (assetsForAction('drink').length && Math.random() < 0.35) return 'drink';
+        return assetsForAction('groom').length ? 'groom' : 'yawn';
+      }
+
+      if (lastCategory !== 'active' && nextAction === 'defensive') {
+        idleRoutine.unshift(nextAction);
+        return assetsForAction('look').length ? 'look' : 'sit';
+      }
+
+      return nextAction;
+    }
+
+    function actionDuration(actionKey, isInteraction = false, asset = null) {
+      if (!isInteraction && isStillAsset(asset)) {
+        if (actionKey === 'sleep') return randomBetween(45000, 130000);
+        if (actionKey === 'sit') return randomBetween(32000, 90000);
+        if (actionKey === 'look') return randomBetween(26000, 76000);
+        return randomBetween(22000, 52000);
+      }
+
+      const range = ACTION_DURATIONS[actionKey] || [5200, 9000];
+      const duration = randomBetween(range[0], range[1]);
+      return isInteraction ? duration + 1200 : duration;
+    }
+
+    function actionMessage(actionKey) {
+      const messages = config?.actionMessages?.[actionKey];
+      if (Array.isArray(messages) && messages.length) return pick(messages, '');
+      return pick(config?.idleMessages, '');
+    }
+
+    function preloadVideoAsset(asset) {
+      if (!asset || asset.type !== 'video' || preloadedVideos.has(asset.id)) return;
+      const preload = document.createElement('video');
+      preload.preload = 'auto';
+      preload.muted = true;
+      preload.playsInline = true;
+      preload.src = asset.fileUrl;
+      preload.load();
+      preloadedVideos.set(asset.id, preload);
+    }
+
+    function preloadAssets() {
+      if (!config?.assets?.length) return;
+      const validIds = new Set(config.assets.filter((asset) => asset.enabled !== false).map((asset) => asset.id));
+      for (const [assetId, preload] of preloadedVideos) {
+        if (!validIds.has(assetId)) {
+          preload.removeAttribute('src');
+          preload.load();
+          preloadedVideos.delete(assetId);
+        }
+      }
+
+      const byPriority = config.assets.filter((asset) => asset.enabled !== false).sort((a, b) => {
+        const priority = { sleep: 0, groom: 1, look: 2, sit: 3, stretch: 4, drink: 5 };
+        return (priority[a.actionKey] ?? 9) - (priority[b.actionKey] ?? 9);
+      });
+
+      const videoIds = new Set(byPriority.filter((asset) => asset.type === 'video').slice(0, MAX_PRELOADED_VIDEOS).map((asset) => asset.id));
+      for (const [assetId, preload] of preloadedVideos) {
+        if (!videoIds.has(assetId)) {
+          preload.removeAttribute('src');
+          preload.load();
+          preloadedVideos.delete(assetId);
+        }
+      }
+
+      for (const asset of byPriority) {
+        if (!videoIds.has(asset.id)) continue;
+        preloadVideoAsset(asset);
+      }
+    }
+
+    function startBubbleDismissTimer(transitionId, duration, isReminder) {
+      bubbleTimer = setTimeout(() => {
+        if (transitionId !== bubbleTransitionId) return;
+        bubble.classList.remove('show');
+        bubbleCollapseTimer = setTimeout(() => {
+          if (transitionId !== bubbleTransitionId) return;
+          bubble.classList.remove('reminder');
+          bubbleLayoutReserved = false;
+          updateWindowLayout(false);
+          if (isReminder) {
+            reminderVisible = false;
+            showNextReminder();
+          }
+        }, BUBBLE_TRANSITION_MS);
+      }, duration);
+    }
+
+    function showMessage(text, duration = 3200, isReminder = false) {
+      if (reminderVisible && !isReminder) return;
+      const transitionId = ++bubbleTransitionId;
+      const wasVisible = bubble.classList.contains('show');
+      clearTimeout(bubbleTimer);
+      clearTimeout(bubbleCollapseTimer);
+      if (bubbleRevealFrame) cancelAnimationFrame(bubbleRevealFrame);
+      bubbleRevealFrame = null;
+      bubble.textContent = text;
+      bubble.classList.toggle('reminder', isReminder);
+      bubbleLayoutReserved = true;
+
+      if (wasVisible) {
+        updateWindowLayout(true, true);
+        startBubbleDismissTimer(transitionId, duration, isReminder);
+        return;
+      }
+
+      // Reserve and remeasure the transparent window before the bubble starts its visual transition.
+      updateWindowLayout(true, true);
+      bubbleRevealFrame = requestAnimationFrame(() => {
+        if (transitionId !== bubbleTransitionId) return;
+        updateWindowLayout(true, true);
+        bubbleRevealFrame = requestAnimationFrame(() => {
+          if (transitionId !== bubbleTransitionId) return;
+          bubbleRevealFrame = null;
+          bubble.classList.add('show');
+          startBubbleDismissTimer(transitionId, duration, isReminder);
+        });
+      });
+    }
+
+    function showNextReminder() {
+      if (reminderVisible || !reminderQueue.length) return;
+      reminderVisible = true;
+      const reminder = reminderQueue.shift();
+      const text = [reminder.title, reminder.message].filter(Boolean).join('：') || '康康熊提醒你注意一件事。';
+      showMessage(text, 9000, true);
+    }
+
+    function animatePet() {
+      petMotion.classList.remove('bounce', 'wiggle');
+      void petMotion.offsetWidth;
+      petMotion.classList.add(Math.random() > 0.5 ? 'bounce' : 'wiggle');
+    }
+
+    function scheduleIdle(delay = null) {
+      clearTimeout(idleTimer);
+      if (!petVisible) return;
+      const nextDelay = delay ?? randomBetween(2500, 8000);
+      idleTimer = setTimeout(runIdleAction, nextDelay);
+    }
+
+    function runIdleAction() {
+      if (!petVisible) return;
+      if (!config?.assets?.some((asset) => asset.enabled !== false)) return;
+      if (isInteractionActive()) {
+        scheduleIdle(randomBetween(1200, 2200));
+        return;
+      }
+      playAction(nextIdleAction());
+    }
+
+    function availableActionWeights(entries) {
+      return entries.filter(([actionKey]) => assetsForAction(actionKey).length);
+    }
+
+    function weightedPickAvailable(entries, fallback = 'look') {
+      const weights = availableActionWeights(entries);
+      return weights.length ? weightedPick(weights) : fallback;
+    }
+
+    function playStartupAction() {
+      if (startupPlayed || !config?.assets?.some((asset) => asset.enabled !== false)) return false;
+      const weights = availableActionWeights(STARTUP_ACTION_WEIGHTS);
+      if (!weights.length) return false;
+
+      startupPlayed = true;
+      const actionKey = weightedPick(weights);
+      idleRoutine = [
+        ...maybe('look', 0.75),
+        weightedPickAvailable([['idle', 36], ['happy', 24], ['think', 22], ['work', 10], ['eat', 8]], actionKey),
+        weightedPickAvailable([['idle', 42], ['sleep', 26], ['think', 18], ['happy', 14]], actionKey)
+      ].filter((nextAction) => assetsForAction(nextAction).length);
+      routineName = 'startupSettle';
+      playAction(actionKey, {
+        animate: true,
+        duration: randomBetween(7000, 13000),
+        message: pick([
+          '康康熊来啦，先巡视一下桌面。',
+          '康康熊上线，精神还不错。',
+          '先活动一小会儿，再考虑要不要睡觉。'
+        ], '')
+      });
+      return true;
+    }
+
+    function playAction(actionKey, options = {}) {
+      const asset = options.asset || pickAssetForActions([actionKey], {
+        assetPool: options.assetPool,
+        allowSame: !options.interaction && isRestAction(actionKey),
+        preferStill: !options.interaction && isRestAction(actionKey),
+        stayChance: actionKey === 'sleep' ? 0.86 : 0.74
+      });
+      if (!asset) {
+        scheduleIdle(randomBetween(5000, 12000));
+        return;
+      }
+
+      runtimeAssetId = asset.id;
+      lastActionKey = actionKey;
+      lastCategory = categoryForAction(actionKey);
+      forceReplay = options.interaction || asset.id !== displayedAssetId;
+      preloadVideoAsset(asset);
+      render(config);
+
+      if (options.message) showMessage(options.message);
+      if (options.animate) animatePet();
+
+      if (Math.random() < (options.interaction ? 0.45 : 0.24)) {
+        const idleText = actionMessage(actionKey);
+        if (idleText && !options.message) {
+          setTimeout(() => showMessage(idleText), randomBetween(500, 1500));
+        }
+      }
+
+      const duration = Number.isFinite(options.duration)
+        ? options.duration
+        : actionDuration(actionKey, Boolean(options.interaction), asset);
+      scheduleIdle(duration);
+    }
+
+    function interact(source) {
+      const button = typeof source === 'object' && source ? source : null;
+      const buttonAssets = assetsForButton(button);
+      const freshButtonAssets = buttonAssets.filter((asset) => asset.id !== displayedAssetId);
+      const selectedAsset = buttonAssets.length ? pick(freshButtonAssets.length ? freshButtonAssets : buttonAssets, null) : null;
+      const actionKeys = button?.actionKeys?.length ? button.actionKeys : ['rub', 'greet', 'look'];
+      const selectedAction = selectedAsset?.actionKey || pick(actionKeys, 'look');
+      const responses = button?.responses?.length ? button.responses : config?.responses;
+      const text = pick(responses, '喵。');
+      idleRoutine = makeRoutine(['play', 'hunt', 'walk', 'sharpen', 'defensive'].includes(selectedAction) ? 'coolDown' : 'groomCycle');
+      playAction(selectedAction, { asset: selectedAsset, message: text, animate: true, interaction: true });
+    }
+
+    function interactionButtonPresentation(item) {
+      const presets = {
+        pat: { icon: '🤚', label: '抚摸康康熊' },
+        call: { icon: '💬', label: '呼唤康康熊' },
+        feed: { icon: '🍎', label: '投喂康康熊' },
+        work: { icon: '💼', label: '专注工作' }
+      };
+      const preset = presets[item.id];
+      return { icon: preset?.icon || '✦', label: item.label || preset?.label || '互动' };
+    }
+
+    function setClickThrough(ignore) {
+      if (clickThrough === ignore) return;
+      clickThrough = ignore;
+      desktopPetApi.setClickThrough(ignore);
+    }
+
+    function rectContains(rect, x, y) {
+      return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+    }
+
+    function menuGroupContainsPointer(group) {
+      if (!group || !lastPointerPosition) return false;
+
+      const groupRect = group.getBoundingClientRect();
+      const menu = group.querySelector('.interaction-submenu');
+      if (!menu || !groupRect.width || !groupRect.height) {
+        return rectContains(groupRect, lastPointerPosition.x, lastPointerPosition.y);
+      }
+
+      const menuRect = menu.getBoundingClientRect();
+      return rectContains({
+        left: Math.min(groupRect.left, menuRect.left),
+        right: Math.max(groupRect.right, menuRect.right),
+        top: Math.min(groupRect.top, menuRect.top),
+        bottom: Math.max(groupRect.bottom, menuRect.bottom)
+      }, lastPointerPosition.x, lastPointerPosition.y);
+    }
+
+    function elementContainsPoint(element, x, y) {
+      return element && !element.classList.contains('hidden') && rectContains(element.getBoundingClientRect(), x, y);
+    }
+
+    function buttonsCorridorHitTest(x, y) {
+      if (!buttons.children.length) return false;
+
+      const buttonsRect = buttons.getBoundingClientRect();
+      const petRect = petWrap.getBoundingClientRect();
+      if (!buttonsRect.width || !buttonsRect.height || !petRect.width || !petRect.height) return false;
+
+      const rect = {
+        left: buttonsRect.left - 18,
+        right: buttonsRect.right + 18,
+        top: petRect.bottom - 18,
+        bottom: buttonsRect.bottom + 18
+      };
+
+      return rectContains(rect, x, y);
+    }
+
+    function mediaContentRect(element) {
+      const bounds = element.getBoundingClientRect();
+      const mediaWidth = element.naturalWidth || element.videoWidth;
+      const mediaHeight = element.naturalHeight || element.videoHeight;
+
+      if (!mediaWidth || !mediaHeight || !bounds.width || !bounds.height) return null;
+
+      const scale = Math.min(bounds.width / mediaWidth, bounds.height / mediaHeight);
+      const width = mediaWidth * scale;
+      const height = mediaHeight * scale;
+
+      return {
+        left: bounds.left + (bounds.width - width) / 2,
+        top: bounds.top + (bounds.height - height) / 2,
+        right: bounds.left + (bounds.width + width) / 2,
+        bottom: bounds.top + (bounds.height + height) / 2,
+        width,
+        height,
+        mediaWidth,
+        mediaHeight
+      };
+    }
+
+    function mediaHasOpaquePixel(element, x, y) {
+      if (element.classList.contains('hidden')) return false;
+
+      const rect = mediaContentRect(element);
+      if (!rect) return elementContainsPoint(element, x, y);
+      if (!rectContains(rect, x, y)) return false;
+
+      const sourceX = Math.min(rect.mediaWidth - 1, Math.max(0, Math.floor(((x - rect.left) / rect.width) * rect.mediaWidth)));
+      const sourceY = Math.min(rect.mediaHeight - 1, Math.max(0, Math.floor(((y - rect.top) / rect.height) * rect.mediaHeight)));
+
+      try {
+        hitCanvas.width = 1;
+        hitCanvas.height = 1;
+        hitContext.clearRect(0, 0, 1, 1);
+        hitContext.drawImage(element, sourceX, sourceY, 1, 1, 0, 0, 1, 1);
+        return hitContext.getImageData(0, 0, 1, 1).data[3] >= ALPHA_HIT_THRESHOLD;
+      } catch {
+        return elementContainsPoint(element, x, y);
+      }
+    }
+
+    function applyBubbleAnchor(topInViewport) {
+      return topInViewport;
+    }
+
+    function measureOpaqueMediaTop(element) {
+      const rect = mediaContentRect(element);
+      if (!rect) return null;
+
+      const scale = Math.min(1, 180 / rect.mediaWidth, 180 / rect.mediaHeight);
+      const width = Math.max(1, Math.round(rect.mediaWidth * scale));
+      const height = Math.max(1, Math.round(rect.mediaHeight * scale));
+
+      try {
+        measureCanvas.width = width;
+        measureCanvas.height = height;
+        measureContext.clearRect(0, 0, width, height);
+        measureContext.drawImage(element, 0, 0, width, height);
+
+        const pixels = measureContext.getImageData(0, 0, width, height).data;
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            if (pixels[(y * width + x) * 4 + 3] >= BUBBLE_ALPHA_THRESHOLD) {
+              return rect.top + (y / height) * rect.height;
+            }
+          }
+        }
+      } catch {
+        return null;
+      }
+
+      return null;
+    }
+
+    function measurePlaceholderTop() {
+      if (placeholder.classList.contains('hidden')) return null;
+      const selectors = ['.dog-head', '.ear.left', '.ear.right'];
+      const tops = selectors
+        .map((selector) => placeholder.querySelector(selector)?.getBoundingClientRect().top)
+        .filter((top) => Number.isFinite(top));
+      return tops.length ? Math.min(...tops) : null;
+    }
+
+    function updateBubbleAnchor() {
+      requestAnimationFrame(() => {
+        let top = null;
+
+        if (!image.classList.contains('hidden')) {
+          top = measureOpaqueMediaTop(image);
+        } else if (!video.classList.contains('hidden')) {
+          top = measureOpaqueMediaTop(video);
+        } else {
+          top = measurePlaceholderTop();
+        }
+
+        if (top == null) {
+          top = petWrap.getBoundingClientRect().top;
+        }
+
+        applyBubbleAnchor(top);
+      });
+    }
+
+    function scheduleBubbleLayoutUpdate() {
+      if (bubbleLayoutFrame || !bubble.classList.contains('show')) return;
+      bubbleLayoutFrame = requestAnimationFrame(() => {
+        bubbleLayoutFrame = null;
+        updateWindowLayout(true);
+      });
+    }
+
+    function currentMenuLayout() {
+      const menu = buttons.querySelector('.interaction-group.menu-open .interaction-submenu');
+      if (!menu) return { visible: false };
+      const rect = menu.getBoundingClientRect();
+      return {
+        visible: true,
+        width: Math.min(260, Math.max(140, Math.ceil(rect.width))),
+        reserveVertical: false
+      };
+    }
+
+    function scheduleMenuLayoutUpdate() {
+      if (menuLayoutFrame) return;
+      menuLayoutFrame = requestAnimationFrame(() => {
+        menuLayoutFrame = null;
+        updateWindowLayout(bubbleLayoutReserved, true);
+      });
+    }
+
+    function currentBubbleLayout() {
+      const rect = bubble.getBoundingClientRect();
+      return {
+        visible: true,
+        // The main process reserves the same 12px gutter used by the bubble CSS.
+        // Reporting the border-box width keeps repeated resize measurements stable.
+        width: Math.min(240, Math.max(140, Math.round(rect.width))),
+        height: Math.max(40, Math.ceil(rect.height))
+      };
+    }
+
+    function updateWindowLayout(bubbleVisible = bubbleLayoutReserved, force = false) {
+      if (!config) return;
+      const active = config.assets.find((asset) => asset.id === displayedAssetId) || config.assets.find((asset) => asset.id === config.activeAssetId);
+      const bounds = active?.contentBounds || { width: 1, height: 1 };
+      const width = Math.max(1, Number(bounds.width));
+      const height = Math.max(1, Number(bounds.height));
+      const petWidth = Math.round(config.size * Math.max(0.45, Math.min(2.4, width / height)));
+      document.documentElement.style.setProperty('--pet-width', `${petWidth}px`);
+      const controlsHeight = 8 + 26 + 8;
+      document.documentElement.style.setProperty('--controls-height', `${controlsHeight}px`);
+      const bubbleSize = bubbleVisible ? currentBubbleLayout() : { visible: false };
+      const menuSize = currentMenuLayout();
+      const signature = JSON.stringify({ size: config.size, assetId: active?.id || null, aspect: width / height, bubble: bubbleSize, menu: menuSize });
+      if (signature === layoutSignature) return;
+      const layout = { signature, assetId: active?.id || null, bubble: bubbleSize, menu: menuSize };
+      if (isInteractionActive() && !force) {
+        pendingLayout = layout;
+        return;
+      }
+      if (force) pendingLayout = null;
+      layoutSignature = signature;
+      desktopPetApi.updateLayout({ assetId: layout.assetId, bubble: layout.bubble, menu: layout.menu });
+    }
+
+    function flushPendingLayout() {
+      if (!pendingLayout || isInteractionActive()) return;
+      const layout = pendingLayout;
+      pendingLayout = null;
+      layoutSignature = layout.signature;
+      desktopPetApi.updateLayout({ assetId: layout.assetId, bubble: layout.bubble, menu: layout.menu });
+    }
+
+    function isInteractionActive() {
+      return Boolean(
+        dragState
+        || stage.classList.contains('pet-hit')
+        || stage.classList.contains('controls-hit')
+        || buttons.matches(':focus-within')
+        || buttons.querySelector('.interaction-group.menu-open')
+      );
+    }
+
+    function ellipseContains(element, x, y) {
+      if (!element || element.classList.contains('hidden')) return false;
+      const rect = element.getBoundingClientRect();
+      if (!rectContains(rect, x, y)) return false;
+
+      const rx = rect.width / 2;
+      const ry = rect.height / 2;
+      const dx = (x - (rect.left + rx)) / rx;
+      const dy = (y - (rect.top + ry)) / ry;
+      return dx * dx + dy * dy <= 1;
+    }
+
+    function placeholderHitTest(x, y) {
+      if (placeholder.classList.contains('hidden')) return false;
+      return [
+        '.dog-head',
+        '.ear.left',
+        '.ear.right',
+        '.snout',
+        '.eye.left',
+        '.eye.right',
+        '.nose'
+      ].some((selector) => ellipseContains(placeholder.querySelector(selector), x, y));
+    }
+
+    function controlsHitTest(x, y) {
+      const openSubmenu = buttons.querySelector('.interaction-group.menu-open .interaction-submenu');
+      if (elementContainsPoint(openSubmenu, x, y)) return true;
+      const openGroup = openSubmenu?.closest('.interaction-group');
+      if (openGroup && !openSubmenu.classList.contains('hidden')) {
+        const groupRect = openGroup.getBoundingClientRect();
+        const menuRect = openSubmenu.getBoundingClientRect();
+        if (rectContains({
+          left: Math.min(groupRect.left, menuRect.left),
+          right: Math.max(groupRect.right, menuRect.right),
+          top: menuRect.top,
+          bottom: groupRect.bottom
+        }, x, y)) return true;
+      }
+      const controlsVisible = stage.classList.contains('pet-hit') || stage.classList.contains('controls-hit');
+      if (!controlsVisible) return false;
+      return buttons.children.length > 0
+        && (elementContainsPoint(buttons, x, y) || buttonsCorridorHitTest(x, y));
+    }
+
+    function petHitTest(x, y) {
+      if (!elementContainsPoint(petWrap, x, y)) return false;
+      if (!image.classList.contains('hidden')) return mediaHasOpaquePixel(image, x, y);
+      if (!video.classList.contains('hidden')) return mediaHasOpaquePixel(video, x, y);
+      return placeholderHitTest(x, y);
+    }
+
+    function updateMouseHit(event) {
+      lastPointerPosition = { x: event.clientX, y: event.clientY };
+      if (dragState) {
+        setClickThrough(false);
+        return;
+      }
+
+      const controlsHit = controlsHitTest(event.clientX, event.clientY);
+      const bubbleHit = bubble.classList.contains('show') && elementContainsPoint(bubble, event.clientX, event.clientY);
+      const petHit = petHitTest(event.clientX, event.clientY);
+      stage.classList.toggle('pet-hit', petHit && !controlsHit && !bubbleHit);
+      stage.classList.toggle('controls-hit', controlsHit || bubbleHit);
+      setClickThrough(!(controlsHit || bubbleHit || petHit));
+    }
+
+    function render(nextConfig) {
+      config = nextConfig;
+      document.documentElement.style.setProperty('--pet-size', `${config.size}px`);
+
+      preloadAssets();
+
+      const active = config.assets.find((asset) => asset.enabled !== false && asset.id === runtimeAssetId)
+        || config.assets.find((asset) => asset.enabled !== false && asset.id === config.activeAssetId)
+        || config.assets.find((asset) => asset.enabled !== false);
+      video.classList.add('hidden');
+      image.classList.add('hidden');
+      placeholder.classList.toggle('hidden', Boolean(active));
+
+      if (active?.type === 'video') {
+        preloadVideoAsset(active);
+        if (video.src !== active.fileUrl) video.src = active.fileUrl;
+        video.preload = 'auto';
+        video.loop = true;
+        video.classList.remove('hidden');
+        if (forceReplay || displayedAssetId !== active.id) {
+          try {
+            video.currentTime = 0;
+          } catch {}
+        }
+        if (petVisible) video.play().catch(() => {});
+        else video.pause();
+      } else if (active?.type === 'image') {
+        if (image.src !== active.fileUrl) image.src = active.fileUrl;
+        image.classList.remove('hidden');
+      }
+
+      displayedAssetId = active?.id || null;
+      forceReplay = false;
+
+      updateWindowLayout();
+
+      updateBubbleAnchor();
+
+      const nextMenuSignature = JSON.stringify((config.interactionButtons || []).map((item) => [item.id, item.label, item.actionKeys, item.responses]));
+      if (nextMenuSignature !== interactionMenuSignature) {
+        renderInteractionMenus();
+        interactionMenuSignature = nextMenuSignature;
+      }
+    }
+
+    function closeInteractionMenus(except = null) {
+      let changed = false;
+      buttons.querySelectorAll('.interaction-group.menu-open').forEach((group) => {
+        if (group !== except) {
+          group.classList.remove('menu-open');
+          changed = true;
+        }
+      });
+      buttons.querySelectorAll('[aria-expanded="true"]').forEach((button) => {
+        if (!except || !except.contains(button)) button.setAttribute('aria-expanded', 'false');
+      });
+      if (changed) scheduleMenuLayoutUpdate();
+      if (!except) flushPendingLayout();
+    }
+
+    function createMenuGroup(icon, label) {
+      const group = document.createElement('div');
+      group.className = 'interaction-group';
+      const trigger = document.createElement('button');
+      trigger.className = 'pet-button';
+      trigger.type = 'button';
+      trigger.setAttribute('aria-label', label);
+      trigger.setAttribute('aria-expanded', 'false');
+      trigger.textContent = icon;
+      const menu = document.createElement('div');
+      menu.className = 'interaction-submenu';
+      menu.setAttribute('role', 'menu');
+      let closeTimer = null;
+      const setOpen = (open) => {
+        clearTimeout(closeTimer);
+        closeInteractionMenus(open ? group : null);
+        group.classList.toggle('menu-open', open);
+        trigger.setAttribute('aria-expanded', String(open));
+        scheduleMenuLayoutUpdate();
+        if (!open) flushPendingLayout();
+      };
+      const scheduleClose = () => {
+        clearTimeout(closeTimer);
+        closeTimer = setTimeout(() => {
+          if (!menuGroupContainsPointer(group)) setOpen(false);
+        }, 180);
+      };
+      group.addEventListener('mouseenter', () => setOpen(true));
+      group.addEventListener('mouseleave', scheduleClose);
+      menu.addEventListener('mouseenter', () => clearTimeout(closeTimer));
+      menu.addEventListener('mouseleave', scheduleClose);
+      trigger.addEventListener('click', (event) => {
+        event.stopPropagation();
+        setOpen(!group.classList.contains('menu-open'));
+      });
+      group.append(trigger, menu);
+      return { group, menu };
+    }
+
+    function createMenuItem(icon, label, onClick) {
+      const item = document.createElement('button');
+      item.className = 'interaction-menu-item';
+      item.type = 'button';
+      item.setAttribute('role', 'menuitem');
+      item.innerHTML = `<span aria-hidden="true">${icon}</span><span>${label}</span>`;
+      item.addEventListener('click', async (event) => {
+        event.stopPropagation();
+        closeInteractionMenus();
+        await onClick();
+      });
+      return item;
+    }
+
+    function renderInteractionMenus() {
+      buttons.innerHTML = '';
+      const interactionButtons = config.interactionButtons || [];
+
+      const playMenu = createMenuGroup('🧸', '陪康康玩');
+      for (const interaction of interactionButtons.filter((item) => item.id !== 'work')) {
+        const presentation = interactionButtonPresentation(interaction);
+        playMenu.menu.appendChild(createMenuItem(presentation.icon, presentation.label, () => interact(interaction)));
+      }
+      buttons.appendChild(playMenu.group);
+
+      const workMenu = createMenuGroup('💼', '专注工作');
+      const workInteraction = interactionButtons.find((item) => item.id === 'work');
+      if (workInteraction) {
+        const presentation = interactionButtonPresentation(workInteraction);
+        workMenu.menu.appendChild(createMenuItem(presentation.icon, presentation.label, () => interact(workInteraction)));
+      }
+      workMenu.menu.append(
+        createMenuItem('➕', '快速新建提醒', () => desktopPetApi.openQuickReminder()),
+        createMenuItem('🔔', '打开提醒管理', () => openPanel('reminders'))
+      );
+      buttons.appendChild(workMenu.group);
+
+      const settingsButton = document.createElement('button');
+      settingsButton.className = 'pet-button settings-button';
+      settingsButton.type = 'button';
+      settingsButton.setAttribute('aria-label', '设置');
+      settingsButton.textContent = '⚙';
+      settingsButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        closeInteractionMenus();
+        openPanel();
+      });
+      buttons.appendChild(settingsButton);
+    }
+
+    async function openPanel(tab) {
+      await desktopPetApi.openPanel(tab);
+    }
+
+    window.addEventListener('mousedown', (event) => {
+      if (!event.target.closest('#buttons')) closeInteractionMenus();
+    });
+
+    window.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape') return;
+      closeInteractionMenus();
+    });
+
+    window.addEventListener('contextmenu', (event) => {
+      event.preventDefault();
+      closeInteractionMenus();
+      desktopPetApi.showContextMenu();
+    });
+
+    stage.addEventListener('mousedown', async (event) => {
+      if (event.button !== 0 || event.target.closest('.no-drag')) return;
+      if (!petHitTest(event.clientX, event.clientY)) return;
+      event.preventDefault();
+      dragState = {
+        startClientX: event.clientX,
+        startClientY: event.clientY,
+        pendingDx: 0,
+        pendingDy: 0,
+        moved: false
+      };
+    });
+
+    let singleClickTimer = null;
+    stage.addEventListener('click', (event) => {
+      if (event.target.closest('.no-drag')) return;
+      if (!petHitTest(event.clientX, event.clientY)) return;
+      if (suppressPetClick) {
+        suppressPetClick = false;
+        return;
+      }
+      clearTimeout(singleClickTimer);
+      singleClickTimer = setTimeout(() => interact(), 220);
+    });
+
+    stage.addEventListener('dblclick', async (event) => {
+      if (event.target.closest('.no-drag') || !petHitTest(event.clientX, event.clientY)) return;
+      clearTimeout(singleClickTimer);
+      const result = await desktopPetApi.openPwa();
+      showMessage(result.message || '未能打开目标应用。');
+    });
+
+    window.addEventListener('mousemove', async (event) => {
+      updateMouseHit(event);
+      if (!dragState) return;
+      event.preventDefault();
+
+      if (!dragState.moved) {
+        const clientDx = event.clientX - dragState.startClientX;
+        const clientDy = event.clientY - dragState.startClientY;
+        if (Math.abs(clientDx) + Math.abs(clientDy) <= 12) return;
+
+        dragState.moved = true;
+        stage.classList.add('dragging');
+        setClickThrough(false);
+      }
+
+      const moveX = event.movementX || 0;
+      const moveY = event.movementY || 0;
+      if (!moveX && !moveY) return;
+      desktopPetApi.moveBy({ dx: moveX, dy: moveY });
+    });
+
+    window.addEventListener('mouseup', (event) => {
+      if (!dragState) return;
+      suppressPetClick = dragState.moved;
+      dragState = null;
+      stage.classList.remove('dragging');
+      updateMouseHit(event);
+    });
+
+    window.addEventListener('blur', () => {
+      dragState = null;
+      lastPointerPosition = null;
+      stage.classList.remove('dragging');
+      stage.classList.remove('pet-hit', 'controls-hit');
+      setClickThrough(true);
+      closeInteractionMenus();
+      flushPendingLayout();
+    });
+
+    window.addEventListener('mouseleave', () => {
+      if (!dragState) {
+        lastPointerPosition = null;
+        stage.classList.remove('pet-hit', 'controls-hit');
+        setClickThrough(true);
+        closeInteractionMenus();
+        flushPendingLayout();
+      }
+    });
+
+    image.addEventListener('load', updateBubbleAnchor);
+    video.addEventListener('loadeddata', updateBubbleAnchor);
+    video.addEventListener('seeked', updateBubbleAnchor);
+    window.addEventListener('resize', () => {
+      updateBubbleAnchor();
+      scheduleBubbleLayoutUpdate();
+    });
+
+    desktopPetApi.onConfigChanged((nextConfig) => {
+      render(nextConfig);
+      scheduleIdle();
+    });
+
+    desktopPetApi.onReminder((reminder) => {
+      reminderQueue.push(reminder);
+      showNextReminder();
+    });
+
+    desktopPetApi.onVisibilityChanged((visible) => {
+      petVisible = visible;
+      if (!visible) {
+        clearTimeout(idleTimer);
+        video.pause();
+        return;
+      }
+      if (!video.classList.contains('hidden')) video.play().catch(() => {});
+      scheduleIdle();
+    });
+
+    desktopPetApi.getConfig().then((nextConfig) => {
+      config = nextConfig;
+      if (!nextConfig.assets?.some((asset) => asset.enabled !== false)) {
+        render(nextConfig);
+        showMessage(nextConfig.assets?.length ? '当前没有启用的素材。打开设置启用素材后，康康熊就会回来。' : '首次启动：打开设置上传康康熊素材。支持 webp、webm、mp4、mov 或 gif。');
+        scheduleIdle();
+        return;
+      }
+      if (!playStartupAction()) {
+        render(nextConfig);
+        scheduleIdle();
+      }
+    });
+
+    setClickThrough(true);
+  </script>
+</body>
+</html>
+
+
