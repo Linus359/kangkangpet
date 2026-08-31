@@ -119,6 +119,7 @@ function normalizeReminder(input = {}, index = 0, now = new Date()) {
       ? Number(input.intervalMinutes ?? input.interval_minutes)
       : null,
     notificationMode: normalizedNotificationMode(input.notificationMode || input.notify_mode),
+    strongReminder: input.strongReminder === true || input.strong_reminder === true || input.persistent === true,
     source: normalizeSource(input.source || (input.sourceType ? input : null)),
     createdAt,
     updatedAt: parseIso(input.updatedAt)?.toISOString() || createdAt,

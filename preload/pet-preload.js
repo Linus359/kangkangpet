@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('petApi', {
   moveBy: (delta) => ipcRenderer.send('pet:move-by', delta),
   reportActivity: () => ipcRenderer.send('pet:activity'),
   wakeFromEdge: () => ipcRenderer.invoke('pet:wake-edge'),
+  finishEdgeWake: () => ipcRenderer.invoke('pet:finish-edge-wake'),
   updateLayout: (layout) => ipcRenderer.send('pet:update-layout', layout),
   setClickThrough: (ignore) => ipcRenderer.send('pet:set-click-through', Boolean(ignore)),
   showContextMenu: () => ipcRenderer.send('pet:context-menu'),

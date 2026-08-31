@@ -305,3 +305,10 @@ test('scheduler retains a one-time reminder within the resume grace window and t
   assert.deepEqual(notified, ['grace-once']);
   assert.equal(records[0].enabled, false);
 });
+
+test('normalizes strong reminders for persistent acknowledgement', () => {
+  const normalized = normalizeReminder({ title: '确认事项', repeat: 'daily', time: '09:00', strongReminder: true }, 0, at('2026-01-01T08:00:00'));
+  assert.equal(normalized.strongReminder, true);
+  const legacy = normalizeReminder({ title: '旧字段', repeat: 'daily', time: '09:00', persistent: true }, 0, at('2026-01-01T08:00:00'));
+  assert.equal(legacy.strongReminder, true);
+});
