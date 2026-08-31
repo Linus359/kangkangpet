@@ -14,6 +14,7 @@ const { parseReminderBackup, parseReminderCsv, parseReminderText, parseReminderX
 const { ReminderScheduler } = require('./src/main/reminder-scheduler');
 const { applyReminderBulkAction, mergeImportedReminders, normalizeReminders, normalizeSource, sortReminders, validateReminder } = require('./src/main/reminders');
 const { DEFAULT_PET_SIZE, MAX_PET_SIZE, MIN_PET_SIZE, chooseDefaultAsset, clampPetPosition, defaultPetPosition, getPetBounds: calculatePetBounds, normalizePetSize } = require('./src/main/pet-layout');
+const { edgeHeadBounds, nearestDesktopEdge, restoredPetBounds } = require('./src/main/pet-edge');
 
 const APP_NAME = '康康熊桌面宠物';
 const APP_ID = 'com.forcome.kangkangpet';
@@ -24,6 +25,9 @@ const ALLOWED_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.webm', '
 const REMINDER_MEDIA_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp3', '.wav', '.m4a', '.aac', '.ogg', '.flac', '.webm', '.mp4', '.mov']);
 const REMINDER_TEXT_EXTENSIONS = new Set(['.txt', '.md', '.log']);
 const ASSET_PATCH_FIELDS = new Set(['enabled', 'actionKey', 'behavior', 'interactionButtonIds']);
+const PET_EDGE_IDLE_MS = 30000;
+const PET_EDGE_HEAD_SIZE = 96;
+const PET_EDGE_TRANSITION_MS = 340;
 
 const actionKeywordRules = [
   ['sleep', ['休息', '睡觉', '打盹', '休憩', '趴地睡觉', '床上睡觉', '坐姿打盹', '伸懒腰']],
@@ -89,6 +93,12 @@ let petLayoutScheduled = false;
 let updaterConfigured = false;
 let updaterCheckPromise = null;
 let updaterState = { status: 'idle', version: null, message: '尚未检查更新。' };
+let petIdleMonitor;
+let petEdgeState = null;
+let petEdgeAnimation;
+let lastCursorPoint = null;
+let lastPointerActivityAt = Date.now();
+let lastPetActivityAt = Date.now();
 
 function writeLog(message, error = null) {
   if (logger) logger.write(message, error);
@@ -495,8 +505,89 @@ function visiblePetPosition(position, bounds) {
   return defaultPetPosition(workArea, bounds);
 }
 
-function resizePetWindow() {
+function stopPetEdgeAnimation() {
+  if (!petEdgeAnimation) return;
+  clearInterval(petEdgeAnimation);
+  petEdgeAnimation = null;
+}
+
+function animatePetBounds(from, to, onComplete = null) {
   if (!petWindow || petWindow.isDestroyed()) return;
+  stopPetEdgeAnimation();
+  const startedAt = Date.now();
+  const draw = () => {
+    if (!petWindow || petWindow.isDestroyed()) return stopPetEdgeAnimation();
+    const progress = Math.min(1, (Date.now() - startedAt) / PET_EDGE_TRANSITION_MS);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const next = {};
+    for (const key of ['x', 'y', 'width', 'height']) next[key] = Math.round(from[key] + (to[key] - from[key]) * eased);
+    petWindow.setBounds(next, false);
+    if (progress < 1) return;
+    stopPetEdgeAnimation();
+    onComplete?.();
+  };
+  draw();
+  petEdgeAnimation = setInterval(draw, 16);
+}
+
+function enterPetEdgeMode() {
+  if (!petWindow || petWindow.isDestroyed() || petEdgeState || !petWindow.isVisible()) return;
+  const current = petWindow.getBounds();
+  const display = screen.getDisplayNearestPoint({ x: current.x + Math.round(current.width / 2), y: current.y + Math.round(current.height / 2) });
+  const edge = nearestDesktopEdge(current, display.workArea);
+  const headBounds = edgeHeadBounds(edge, current, display.workArea, PET_EDGE_HEAD_SIZE);
+  petEdgeState = { edge, displayId: display.id, headBounds };
+  petWindow.webContents.send('pet:edge-state', { dormant: true, edge });
+  animatePetBounds(current, headBounds);
+  writeLog(`康康熊进入边缘休眠：${edge}。`);
+}
+
+function wakePetFromEdge() {
+  if (!petWindow || petWindow.isDestroyed() || !petEdgeState) return false;
+  const state = petEdgeState;
+  const display = screen.getAllDisplays().find((item) => item.id === state.displayId) || screen.getDisplayNearestPoint({ x: state.headBounds.x, y: state.headBounds.y });
+  const target = restoredPetBounds(state.edge, petWindow.getBounds(), getPetBounds(), display.workArea);
+  petEdgeState = null;
+  lastPetActivityAt = Date.now();
+  setPetClickThrough(false);
+  petWindow.webContents.send('pet:edge-state', { dormant: false, edge: state.edge });
+  animatePetBounds(petWindow.getBounds(), target, () => {
+    config.position = { x: target.x, y: target.y };
+    saveConfigSoon();
+  });
+  writeLog('康康熊已从边缘休眠恢复。');
+  return true;
+}
+
+function notePetActivity() {
+  lastPetActivityAt = Date.now();
+}
+
+function monitorPetInactivity() {
+  if (!petWindow || petWindow.isDestroyed() || !petWindow.isVisible() || petEdgeState) return;
+  const now = Date.now();
+  const point = screen.getCursorScreenPoint();
+  if (!lastCursorPoint || point.x !== lastCursorPoint.x || point.y !== lastCursorPoint.y) {
+    lastCursorPoint = point;
+    lastPointerActivityAt = now;
+  }
+  const bounds = petWindow.getBounds();
+  if (point.x >= bounds.x && point.x <= bounds.x + bounds.width && point.y >= bounds.y && point.y <= bounds.y + bounds.height) {
+    lastPointerActivityAt = now;
+  }
+  if (now - Math.max(lastPointerActivityAt, lastPetActivityAt) >= PET_EDGE_IDLE_MS) enterPetEdgeMode();
+}
+
+function startPetIdleMonitor() {
+  clearInterval(petIdleMonitor);
+  lastCursorPoint = screen.getCursorScreenPoint();
+  lastPointerActivityAt = Date.now();
+  lastPetActivityAt = Date.now();
+  petIdleMonitor = setInterval(monitorPetInactivity, 1000);
+}
+
+function resizePetWindow() {
+  if (!petWindow || petWindow.isDestroyed() || petEdgeState) return;
   const bounds = getPetBounds();
   const position = visiblePetPosition(config.position || petWindow.getBounds(), bounds);
   const current = petWindow.getBounds();
@@ -507,7 +598,7 @@ function resizePetWindow() {
 }
 
 function applyPetLayout(layout) {
-  if (!petWindow || petWindow.isDestroyed() || !layout || typeof layout !== 'object') return;
+  if (!petWindow || petWindow.isDestroyed() || petEdgeState || !layout || typeof layout !== 'object') return;
   const bubble = layout.bubble?.visible ? layout.bubble : null;
   const menu = layout.menu?.visible ? layout.menu : null;
   const bounds = getPetBounds(bubble, layout.assetId, menu);
@@ -569,7 +660,7 @@ function createPetWindow() {
   petWindow.loadFile('pet.html');
   petWindow.on('show', () => petWindow?.webContents.send('pet:visibility', true));
   petWindow.on('hide', () => petWindow?.webContents.send('pet:visibility', false));
-  petWindow.on('closed', () => { petWindow = null; });
+  petWindow.on('closed', () => { stopPetEdgeAnimation(); petEdgeState = null; petWindow = null; });
   petWindow.webContents.on('render-process-gone', (_event, details) => writeLog(`桌宠渲染进程异常：${details.reason}`));
   return petWindow;
 }
@@ -641,6 +732,7 @@ function appIconPath() {
 
 function showPet() {
   const win = createPetWindow();
+  notePetActivity();
   win.showInactive();
 }
 
@@ -1154,14 +1246,19 @@ function setupIpc() {
   ipcMain.handle('reminders:export', exportReminders);
   ipcMain.handle('reminders:template-save', (_event, csv) => saveReminderTemplate(csv));
   ipcMain.handle('pet:open-pwa', openInstalledPwa);
+  ipcMain.handle('pet:wake-edge', () => wakePetFromEdge());
+  ipcMain.on('pet:activity', notePetActivity);
   ipcMain.on('pet:set-click-through', (_event, ignore) => setPetClickThrough(ignore));
   ipcMain.on('pet:update-layout', (_event, layout) => updatePetLayout(layout));
   ipcMain.on('pet:context-menu', showPetContextMenu);
   ipcMain.on('pet:move-by', (_event, delta) => {
     if (!petWindow || petWindow.isDestroyed()) return;
+    if (petEdgeState) return;
     const dx = Number(delta?.dx);
     const dy = Number(delta?.dy);
     if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
+    stopPetEdgeAnimation();
+    notePetActivity();
     const [x, y] = petWindow.getPosition();
     config.position = { x: Math.round(x + dx), y: Math.round(y + dy) };
     petWindow.setPosition(config.position.x, config.position.y, false);
@@ -1184,6 +1281,7 @@ if (!app.requestSingleInstanceLock()) {
     loadConfig();
     setupIpc();
     createPetWindow();
+    startPetIdleMonitor();
     createTray();
     if (openPanelOnLaunch) createPanelWindow();
     setupAutoUpdater();
@@ -1200,4 +1298,4 @@ process.on('unhandledRejection', (error) => writeLog('未处理的 Promise 拒�
 
 app.on('activate', () => showPet());
 app.on('window-all-closed', () => { saveConfigNow(); });
-app.on('before-quit', () => { isQuitting = true; scheduler?.stop(); saveConfigNow(); });
+app.on('before-quit', () => { isQuitting = true; clearInterval(petIdleMonitor); stopPetEdgeAnimation(); scheduler?.stop(); saveConfigNow(); });

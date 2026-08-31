@@ -43,6 +43,49 @@
       cursor: default;
     }
 
+    #edgeHead {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(0.82);
+      transition: opacity 240ms ease, transform 320ms cubic-bezier(.22, 1, .36, 1);
+    }
+
+    #edgeHead img {
+      display: block;
+      width: min(90px, 94%);
+      height: min(90px, 94%);
+      object-fit: contain;
+      filter: drop-shadow(0 3px 4px rgba(40, 34, 28, 0.18));
+      transform: rotate(var(--edge-head-rotation, 0deg));
+      transition: transform 320ms cubic-bezier(.22, 1, .36, 1);
+    }
+
+    #stage.edge-left { --edge-head-rotation: 90deg; }
+    #stage.edge-right { --edge-head-rotation: -90deg; }
+
+    #stage.edge-dormant #edgeHead {
+      opacity: 0.5;
+      pointer-events: auto;
+      transform: scale(1);
+    }
+
+    #petWrap {
+      transition: opacity 220ms ease, transform 300ms cubic-bezier(.22, 1, .36, 1), visibility 0s linear 220ms;
+    }
+
+    #stage.edge-dormant #petWrap,
+    #stage.edge-dormant #bubble,
+    #stage.edge-dormant :is(#buttons) {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translateX(-50%) scale(0.8);
+    }
+
     #stage.pet-hit {
       cursor: grab;
     }
@@ -355,6 +398,7 @@
 </head>
 <body>
   <main id="stage">
+    <aside id="edgeHead" aria-label="边缘休眠中的康康熊"><img src="assets/head/kangkang-head.png" alt="康康熊熊头"></aside>
     <div id="bubble">上传康康熊素材后，我会变成你熟悉的样子。</div>
     <section id="petWrap" aria-label="康康熊桌宠">
       <div id="petMotion">
@@ -388,6 +432,7 @@
     const image = document.querySelector('#image');
     const placeholder = document.querySelector('#placeholder');
     const buttons = document.querySelector('#buttons');
+    const edgeHead = document.querySelector('#edgeHead');
 
     let config = null;
     let bubbleTimer = null;
@@ -417,6 +462,7 @@
     let routineName = 'settle';
     let startupPlayed = false;
     let petVisible = true;
+    let edgeDormant = false;
     const preloadedVideos = new Map();
     const MAX_PRELOADED_VIDEOS = 4;
     const hitCanvas = document.createElement('canvas');
@@ -926,6 +972,8 @@
     }
 
     function interact(source) {
+      if (edgeDormant) return;
+      desktopPetApi.reportActivity();
       const button = typeof source === 'object' && source ? source : null;
       const buttonAssets = assetsForButton(button);
       const freshButtonAssets = buttonAssets.filter((asset) => asset.id !== displayedAssetId);
@@ -953,6 +1001,24 @@
       if (clickThrough === ignore) return;
       clickThrough = ignore;
       desktopPetApi.setClickThrough(ignore);
+    }
+
+    function setEdgeDormant(nextDormant, edge = '') {
+      edgeDormant = Boolean(nextDormant);
+      stage.classList.toggle('edge-dormant', edgeDormant);
+      stage.classList.toggle('edge-left', edgeDormant && edge === 'left');
+      stage.classList.toggle('edge-right', edgeDormant && edge === 'right');
+      if (edgeDormant) {
+        clearTimeout(idleTimer);
+        closeInteractionMenus();
+        bubble.classList.remove('show');
+        stage.classList.remove('pet-hit', 'controls-hit', 'dragging');
+        setClickThrough(false);
+        return;
+      }
+      layoutSignature = '';
+      if (!dragState) requestAnimationFrame(() => updateWindowLayout(false, true));
+      scheduleIdle();
     }
 
     function rectContains(rect, x, y) {
@@ -1143,7 +1209,7 @@
     }
 
     function updateWindowLayout(bubbleVisible = bubbleLayoutReserved, force = false) {
-      if (!config) return;
+      if (!config || edgeDormant) return;
       const active = config.assets.find((asset) => asset.id === displayedAssetId) || config.assets.find((asset) => asset.id === config.activeAssetId);
       const bounds = active?.contentBounds || { width: 1, height: 1 };
       const width = Math.max(1, Number(bounds.width));
@@ -1230,6 +1296,7 @@
     }
 
     function petHitTest(x, y) {
+      if (edgeDormant) return elementContainsPoint(edgeHead, x, y);
       if (!elementContainsPoint(petWrap, x, y)) return false;
       if (!image.classList.contains('hidden')) return mediaHasOpaquePixel(image, x, y);
       if (!video.classList.contains('hidden')) return mediaHasOpaquePixel(video, x, y);
@@ -1246,6 +1313,12 @@
       const controlsHit = controlsHitTest(event.clientX, event.clientY);
       const bubbleHit = bubble.classList.contains('show') && elementContainsPoint(bubble, event.clientX, event.clientY);
       const petHit = petHitTest(event.clientX, event.clientY);
+      if (edgeDormant) {
+        stage.classList.toggle('pet-hit', petHit);
+        stage.classList.remove('controls-hit');
+        setClickThrough(!petHit);
+        return;
+      }
       stage.classList.toggle('pet-hit', petHit && !controlsHit && !bubbleHit);
       stage.classList.toggle('controls-hit', controlsHit || bubbleHit);
       setClickThrough(!(controlsHit || bubbleHit || petHit));
@@ -1423,6 +1496,7 @@
       if (event.button !== 0 || event.target.closest('.no-drag')) return;
       if (!petHitTest(event.clientX, event.clientY)) return;
       event.preventDefault();
+      desktopPetApi.reportActivity();
       dragState = {
         startClientX: event.clientX,
         startClientY: event.clientY,
@@ -1436,6 +1510,7 @@
     stage.addEventListener('click', (event) => {
       if (event.target.closest('.no-drag')) return;
       if (!petHitTest(event.clientX, event.clientY)) return;
+      if (edgeDormant) return;
       if (suppressPetClick) {
         suppressPetClick = false;
         return;
@@ -1446,6 +1521,7 @@
 
     stage.addEventListener('dblclick', async (event) => {
       if (event.target.closest('.no-drag') || !petHitTest(event.clientX, event.clientY)) return;
+      if (edgeDormant) return;
       clearTimeout(singleClickTimer);
       const result = await desktopPetApi.openPwa();
       showMessage(result.message || '未能打开目标应用。');
@@ -1461,6 +1537,12 @@
         const clientDy = event.clientY - dragState.startClientY;
         if (Math.abs(clientDx) + Math.abs(clientDy) <= 12) return;
 
+        if (edgeDormant) {
+          const woke = await desktopPetApi.wakeFromEdge();
+          if (!woke) return;
+          setEdgeDormant(false);
+        }
+
         dragState.moved = true;
         stage.classList.add('dragging');
         setClickThrough(false);
@@ -1469,6 +1551,7 @@
       const moveX = event.movementX || 0;
       const moveY = event.movementY || 0;
       if (!moveX && !moveY) return;
+      desktopPetApi.reportActivity();
       desktopPetApi.moveBy({ dx: moveX, dy: moveY });
     });
 
@@ -1527,6 +1610,10 @@
       }
       if (!video.classList.contains('hidden')) video.play().catch(() => {});
       scheduleIdle();
+    });
+
+    desktopPetApi.onEdgeStateChanged((state) => {
+      setEdgeDormant(state.dormant, state.edge);
     });
 
     desktopPetApi.getConfig().then((nextConfig) => {
