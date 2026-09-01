@@ -16,7 +16,7 @@ const { ReminderScheduler } = require('./src/main/reminder-scheduler');
 const { applyReminderBulkAction, mergeImportedReminders, normalizeReminders, normalizeSource, sortReminders, validateReminder } = require('./src/main/reminders');
 const { DEFAULT_PET_SIZE, MAX_PET_SIZE, MIN_PET_SIZE, chooseDefaultAsset, clampPetPosition, defaultPetPosition, getPetBounds: calculatePetBounds, normalizePetSize } = require('./src/main/pet-layout');
 
-const APP_NAME = '康康熊桌面宠物';
+const APP_NAME = '康康熊桌宠';
 const APP_ID = 'com.forcome.kangkangpet';
 const FORCOME_AI_URL = 'https://ai.forcome.com';
 const RELEASE_NOTES_URL = 'https://api.github.com/repos/Linus359/kangkangpet/releases?per_page=100';

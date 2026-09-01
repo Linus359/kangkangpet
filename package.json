@@ -1,7 +1,7 @@
 {
   "name": "kangkangpet",
-  "version": "1.3.7",
-  "description": "A transparent always-on-top desktop pet app for 康康熊.",
+  "version": "1.5.0",
+  "description": "康康熊桌宠：本地桌面宠物与提醒工具。",
   "main": "main.js",
   "scripts": {
     "prestart": "node scripts/process-pet-assets.js",
@@ -22,7 +22,7 @@
     "windows",
     "desktop-pet"
   ],
-  "author": "Linus",
+  "author": "Linus359",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -39,8 +39,8 @@
   },
   "build": {
     "appId": "com.forcome.kangkangpet",
-    "productName": "康康熊桌面宠物",
-    "copyright": "Copyright © 2026 Linus",
+    "productName": "康康熊桌宠",
+    "copyright": "Copyright © 2026 Linus359",
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -88,8 +88,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "康康熊桌面宠物",
-      "uninstallDisplayName": "康康熊桌面宠物",
+      "shortcutName": "康康熊桌宠",
+      "uninstallDisplayName": "康康熊桌宠",
       "installerIcon": "build/face.ico",
       "uninstallerIcon": "build/face.ico",
       "installerHeaderIcon": "build/face.ico",

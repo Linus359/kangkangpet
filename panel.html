@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>康康熊控制面板</title>
+  <title>康康熊桌宠控制面板</title>
   <style>
     :root { --bg:#f5f3ee; --surface:#fff; --surface-soft:#fffefa; --line:#ddd7ca; --ink:#2f2b26; --muted:#746d61; --accent:#24786b; --accent-soft:#e7f2ef; --teal:#4f9b8d; --warm:#b53e35; --danger:#b53e35; --soft:#f4f0e8; }
     * { box-sizing:border-box; }
@@ -30,13 +30,13 @@
     .calendar-sidebar { display:grid; grid-template-rows:auto auto minmax(0,1fr); min-height:0; gap:14px; overflow:hidden; } .sidebar-block { padding:14px; border:1px solid var(--line); border-radius:7px; background:var(--surface); }
     .mini-head,.calendar-toolbar,.agenda-head { display:flex; align-items:center; gap:7px; } .mini-head strong { flex:1; text-align:center; font-size:14px; }
     .mini-weekdays,.mini-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; margin-top:10px; } .mini-weekdays { color:var(--muted); font-size:11px; text-align:center; }
-    .mini-day { position:relative; width:100%; height:26px; min-height:0; padding:3px 0; border:0; border-radius:50%; background:transparent; font-size:12px; } .mini-day.outside { color:#a7b1b7; } .mini-day.today { color:var(--accent); font-weight:800; } .mini-day.selected { color:#fff; background:var(--accent); } .mini-day.has-events::after { position:absolute; right:3px; bottom:2px; width:4px; height:4px; border-radius:50%; background:var(--warm); content:""; } .mini-day.selected.has-events::after { background:#fff; }
+    .mini-day { position:relative; width:100%; height:26px; min-height:0; padding:3px 0; border:0; border-radius:50%; background:transparent; font-size:12px; } .mini-day.outside { color:#a7b1b7; } .mini-day.today { color:var(--accent); font-weight:800; } .mini-day.selected { color:#fff; background:var(--accent); } .mini-day.has-events::after { position:absolute; bottom:1px; left:50%; width:4px; height:4px; transform:translateX(-50%); border-radius:50%; background:var(--warm); content:""; } .mini-day.selected.has-events::after { background:#fff; }
     .calendar-main { display:flex; min-width:0; min-height:0; flex-direction:column; } .calendar-toolbar { flex:0 0 auto; flex-wrap:wrap; justify-content:space-between; margin-bottom:12px; } .calendar-toolbar .left,.calendar-toolbar .right { display:flex; align-items:center; gap:7px; } .calendar-toolbar h2 { margin:0 8px; font-size:21px; }
     .calendar-stats { color:var(--muted); font-size:12px; } .calendar-weekdays { display:grid; grid-template-columns:repeat(7,1fr); border:1px solid var(--line); border-bottom:0; background:#f6f8f9; } .calendar-weekdays div { padding:9px 10px; color:var(--muted); font-size:12px; font-weight:700; }
     .month-scroll { flex:1 1 auto; min-height:0; overflow-y:auto; scrollbar-width:thin; scrollbar-color:#c9c1b3 transparent; }
     .calendar-month-section { display:grid; gap:6px; margin-bottom:14px; }
     .calendar-month-heading { padding:4px 2px; color:var(--muted); font-size:13px; font-weight:700; }
-    .month-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); grid-template-rows:repeat(6,minmax(0,1fr)); min-height:420px; border-left:1px solid var(--line); border-top:1px solid var(--line); background:var(--line); gap:1px; } .calendar-cell { display:flex; min-width:0; min-height:0; padding:7px; overflow:hidden; flex-direction:column; background:var(--surface); cursor:pointer; } .calendar-cell:hover { background:#fbfdff; } .calendar-cell.outside { background:#f7f8f9; } .calendar-cell.selected { box-shadow:inset 0 0 0 2px var(--accent); } .day-number { display:flex; flex:0 0 auto; align-items:center; justify-content:space-between; color:var(--muted); font-size:12px; } .outside .day-number { color:#a9b2b8; } .today .day-number span:first-child { display:grid; place-items:center; width:23px; height:23px; border-radius:50%; color:#fff; background:var(--accent); font-weight:800; }
+    .month-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); grid-template-rows:repeat(6,minmax(0,1fr)); aspect-ratio:7 / 6; min-height:0; border-left:1px solid var(--line); border-top:1px solid var(--line); background:var(--line); gap:1px; } .calendar-cell { display:flex; min-width:0; min-height:0; padding:7px; overflow:hidden; flex-direction:column; background:var(--surface); cursor:pointer; } .calendar-cell:hover { background:#fbfdff; } .calendar-cell.outside { background:#f7f8f9; } .calendar-cell.selected { box-shadow:inset 0 0 0 2px var(--accent); } .day-number { display:flex; flex:0 0 auto; align-items:center; justify-content:space-between; color:var(--muted); font-size:12px; } .outside .day-number { color:#a9b2b8; } .today .day-number span:first-child { display:grid; place-items:center; width:23px; height:23px; border-radius:50%; color:#fff; background:var(--accent); font-weight:800; }
     .cell-events { display:grid; flex:1 1 auto; min-height:0; gap:3px; margin-top:5px; overflow-y:auto; overflow-x:hidden; scrollbar-width:thin; scrollbar-color:#c9c1b3 transparent; } .calendar-cell.outside .cell-events { display:none; } .calendar-cell.outside .day-number span:last-child { display:none; } .event-chip { min-width:0; padding:3px 5px; overflow:hidden; border-left:3px solid var(--accent); border-radius:3px; color:#24516f; background:var(--accent-soft); font-size:11px; text-overflow:ellipsis; white-space:nowrap; cursor:pointer; } .event-chip.disabled { border-left-color:#aab5bc; color:#78858d; background:#eef1f2; text-decoration:line-through; } .event-chip:nth-child(3n) { border-left-color:var(--teal); background:#e8f3fb; } .event-chip:nth-child(3n+2) { border-left-color:var(--warm); background:#fff0f0; } .more-events { overflow:hidden; color:var(--muted); font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
     .agenda { margin-top:16px; } .agenda-head { justify-content:space-between; margin-bottom:10px; } .agenda-head .meta { color:var(--muted); font-size:12px; } .agenda-list { display:grid; gap:7px; } .agenda-item { display:grid; grid-template-columns:76px minmax(0,1fr) auto; align-items:center; gap:12px; padding:10px 12px; border:1px solid var(--line); border-radius:6px; background:var(--surface-soft); } .agenda-time { color:var(--accent); font-weight:750; } .agenda-item.disabled { opacity:.55; } .agenda-title { font-weight:750; } .agenda-desc { margin-top:2px; color:var(--muted); font-size:12px; }
     .calendar-legend { display:grid; gap:8px; } .legend-row { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:12px; } .legend-dot { width:9px; height:9px; border-radius:2px; background:var(--accent); } .legend-dot.teal { background:var(--teal); } .legend-dot.warm { background:var(--warm); }
@@ -61,7 +61,7 @@
     @keyframes list-focus-pulse { 0%,100% { box-shadow:0 0 0 0 rgba(26,143,173,.0); } 35% { box-shadow:0 0 0 4px rgba(26,143,173,.28); } }
     #calendarMonthView > .month-scroll { display:block; min-height:0; overflow-y:auto; flex:1 1 auto; }
     #monthGrid { display:block; min-height:auto; border:0; background:transparent; }
-    #monthGrid > .calendar-month-section > .month-grid { min-height:420px; flex:0 0 auto; }
+    #monthGrid > .calendar-month-section > .month-grid { min-height:0; flex:0 0 auto; }
     #calendarMonthView .month-scroll { overscroll-behavior:contain; }
     #remindersTab { min-height:0; overflow:hidden; }
     #remindersTab.active { display:flex; flex-direction:column; }
@@ -301,7 +301,6 @@
     }
     function selectMiniCalendarDate(key) {
       if (!$('#remindersTab').classList.contains('active')) return selectCalendarDate(key);
-      if (!eventsForDate(key).length) { say(`${formatDateLabel(key)} 暂无日程`); return; }
       selectedDate = key;
       const date = fromKey(key);
       monthCursor = new Date(date.getFullYear(), date.getMonth(), 1);
@@ -309,7 +308,7 @@
       renderReminders();
       const firstReminder = visibleReminders(config?.reminders || []).find((reminder) => reminderOnDate(reminder, key));
       if (firstReminder) focusReminderInList(firstReminder.id);
-      else say(`${formatDateLabel(key)} 没有符合当前筛选条件的日程`);
+      else say(eventsForDate(key).length ? `${formatDateLabel(key)} 没有符合当前筛选条件的日程` : `${formatDateLabel(key)} 暂无日程`);
     }
     function renderMiniCalendar() {
       $('#miniMonthLabel').textContent = formatMonth(monthCursor); const first = new Date(monthCursor.getFullYear(), monthCursor.getMonth(), 1); const start = new Date(first); start.setDate(1 - ((first.getDay() + 6) % 7)); const container = $('#miniCalendar'); container.innerHTML = ''; container.classList.remove('mini-slide-next', 'mini-slide-prev');
@@ -318,7 +317,7 @@
     }
     function renderMonthGrid(scrollOffset = 0) {
       const container = $('#monthGrid'); const scroll = $('#monthScroll'); container.innerHTML = '';
-      [-1, 0, 1].forEach((offset) => {
+      [-2, -1, 0, 1, 2].forEach((offset) => {
         const month = new Date(monthCursor.getFullYear(), monthCursor.getMonth() + offset, 1);
         const section = document.createElement('section'); section.className = 'calendar-month-section'; section.dataset.month = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}`;
         const heading = document.createElement('div'); heading.className = 'calendar-month-heading'; heading.textContent = formatMonth(month);
