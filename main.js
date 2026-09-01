@@ -5,6 +5,7 @@ const { autoUpdater } = require('electron-updater');
 const crypto = require('crypto');
 const { spawn } = require('child_process');
 const fs = require('fs');
+const https = require('https');
 const path = require('path');
 const { pathToFileURL } = require('url');
 const { ConfigStore } = require('./src/main/config-store');
@@ -14,19 +15,17 @@ const { parseReminderBackup, parseReminderCsv, parseReminderText, parseReminderX
 const { ReminderScheduler } = require('./src/main/reminder-scheduler');
 const { applyReminderBulkAction, mergeImportedReminders, normalizeReminders, normalizeSource, sortReminders, validateReminder } = require('./src/main/reminders');
 const { DEFAULT_PET_SIZE, MAX_PET_SIZE, MIN_PET_SIZE, chooseDefaultAsset, clampPetPosition, defaultPetPosition, getPetBounds: calculatePetBounds, normalizePetSize } = require('./src/main/pet-layout');
-const { edgeHeadBounds, nearestDesktopEdge, restoredPetBounds } = require('./src/main/pet-edge');
 
 const APP_NAME = '康康熊桌面宠物';
 const APP_ID = 'com.forcome.kangkangpet';
 const FORCOME_AI_URL = 'https://ai.forcome.com';
+const RELEASE_NOTES_URL = 'https://api.github.com/repos/Linus359/kangkangpet/releases?per_page=100';
 const FORCOME_AI_NAME_PATTERN = /forcome\s*ai|forcome/i;
 const ASSET_DIR_NAME = 'cat';
 const ALLOWED_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.webm', '.mp4', '.mov', '.gif']);
 const REMINDER_MEDIA_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp3', '.wav', '.m4a', '.aac', '.ogg', '.flac', '.webm', '.mp4', '.mov']);
 const REMINDER_TEXT_EXTENSIONS = new Set(['.txt', '.md', '.log']);
 const ASSET_PATCH_FIELDS = new Set(['enabled', 'actionKey', 'behavior', 'interactionButtonIds']);
-const PET_EDGE_HEAD_SIZE = 96;
-const PET_EDGE_TRANSITION_MS = 340;
 
 const actionKeywordRules = [
   ['sleep', ['休息', '睡觉', '打盹', '休憩', '趴地睡觉', '床上睡觉', '坐姿打盹', '伸懒腰']],
@@ -92,9 +91,6 @@ let petLayoutScheduled = false;
 let updaterConfigured = false;
 let updaterCheckPromise = null;
 let updaterState = { status: 'idle', version: null, message: '尚未检查更新。' };
-let petEdgeState = null;
-let petEdgeAnimation;
-let lastPetActivityAt = Date.now();
 
 function writeLog(message, error = null) {
   if (logger) logger.write(message, error);
@@ -178,6 +174,29 @@ function setupAutoUpdater() {
   if (!app.isPackaged) return;
   configureAutoUpdater();
   checkForUpdates().catch((error) => writeLog('无法启动在线更新检查。', error));
+}
+
+function getReleaseNotes() {
+  return new Promise((resolve) => {
+    const request = https.get(RELEASE_NOTES_URL, { headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'KangKangPet' } }, (response) => {
+      let body = '';
+      response.setEncoding('utf8');
+      response.on('data', (chunk) => { body += chunk; });
+      response.on('end', () => {
+        if (response.statusCode !== 200) return resolve({ ok: false, error: '暂时无法读取更新说明。', releases: [] });
+        try {
+          const releases = JSON.parse(body);
+          if (!Array.isArray(releases)) throw new Error('Unexpected release payload');
+          resolve({ ok: true, releases: releases.filter((item) => !item.draft).map((item) => ({ version: item.name || item.tag_name || '未命名版本', publishedAt: item.published_at || item.created_at || null, body: item.body || '暂无更新说明。', url: item.html_url || '' })) });
+        } catch (error) {
+          writeLog('解析更新说明失败。', error);
+          resolve({ ok: false, error: '更新说明格式无法识别。', releases: [] });
+        }
+      });
+    });
+    request.setTimeout(8000, () => request.destroy());
+    request.on('error', (error) => { writeLog('读取更新说明失败。', error); resolve({ ok: false, error: '读取更新说明失败，请检查网络。', releases: [] }); });
+  });
 }
 
 function clamp(value, minimum, maximum) {
@@ -501,81 +520,8 @@ function visiblePetPosition(position, bounds) {
   return defaultPetPosition(workArea, bounds);
 }
 
-function stopPetEdgeAnimation() {
-  if (!petEdgeAnimation) return;
-  clearInterval(petEdgeAnimation);
-  petEdgeAnimation = null;
-}
-
-function animatePetBounds(from, to, onComplete = null) {
-  if (!petWindow || petWindow.isDestroyed()) return;
-  stopPetEdgeAnimation();
-  const startedAt = Date.now();
-  const draw = () => {
-    if (!petWindow || petWindow.isDestroyed()) return stopPetEdgeAnimation();
-    const progress = Math.min(1, (Date.now() - startedAt) / PET_EDGE_TRANSITION_MS);
-    const eased = 1 - Math.pow(1 - progress, 3);
-    const next = {};
-    for (const key of ['x', 'y', 'width', 'height']) next[key] = Math.round(from[key] + (to[key] - from[key]) * eased);
-    petWindow.setBounds(next, false);
-    if (progress < 1) return;
-    stopPetEdgeAnimation();
-    onComplete?.();
-  };
-  draw();
-  petEdgeAnimation = setInterval(draw, 16);
-}
-
-function enterPetEdgeMode(dragging = false, forcedEdge = null) {
-  if (!petWindow || petWindow.isDestroyed() || petEdgeState || !petWindow.isVisible()) return;
-  const current = petWindow.getBounds();
-  const display = screen.getDisplayNearestPoint({ x: current.x + Math.round(current.width / 2), y: current.y + Math.round(current.height / 2) });
-  const edge = forcedEdge === 'left' || forcedEdge === 'right' ? forcedEdge : nearestDesktopEdge(current, display.workArea);
-  const headBounds = edgeHeadBounds(edge, current, display.workArea, PET_EDGE_HEAD_SIZE);
-  petEdgeState = { edge, displayId: display.id, headBounds, dragging: dragging ? 'edge' : false };
-  petWindow.webContents.send('pet:edge-state', { dormant: true, edge, dragging: dragging ? 'edge' : false });
-  animatePetBounds(current, headBounds);
-  writeLog(`康康熊进入边缘休眠：${edge}。`);
-}
-
-function wakePetFromEdge() {
-  if (!petWindow || petWindow.isDestroyed() || !petEdgeState) return false;
-  const state = petEdgeState;
-  petEdgeState = { ...state, dragging: 'wake' };
-  lastPetActivityAt = Date.now();
-  setPetClickThrough(false);
-  writeLog('康康熊开始从边缘休眠拖出。');
-  return true;
-}
-
-function finishPetEdgeWake() {
-  if (!petWindow || petWindow.isDestroyed() || !petEdgeState?.dragging) return false;
-  const state = petEdgeState;
-  if (state.dragging === 'edge') {
-    petEdgeState = { ...state, dragging: false };
-    petWindow.webContents.send('pet:edge-state', { dormant: true, edge: state.edge, dragging: false });
-    writeLog('康康熊已贴边隐藏。');
-    return true;
-  }
-  const current = petWindow.getBounds();
-  const display = screen.getAllDisplays().find((item) => item.id === state.displayId) || screen.getDisplayNearestPoint({ x: current.x, y: current.y });
-  const target = restoredPetBounds(state.edge, current, getPetBounds(), display.workArea);
-  petEdgeState = null;
-  petWindow.webContents.send('pet:edge-state', { dormant: false, edge: state.edge });
-  animatePetBounds(current, target, () => {
-    config.position = { x: target.x, y: target.y };
-    saveConfigSoon();
-  });
-  writeLog('康康熊已从边缘休眠恢复。');
-  return true;
-}
-
-function notePetActivity() {
-  lastPetActivityAt = Date.now();
-}
-
 function resizePetWindow() {
-  if (!petWindow || petWindow.isDestroyed() || (petEdgeState && !petEdgeState.dragging)) return;
+  if (!petWindow || petWindow.isDestroyed()) return;
   const bounds = getPetBounds();
   const position = visiblePetPosition(config.position || petWindow.getBounds(), bounds);
   const current = petWindow.getBounds();
@@ -586,7 +532,7 @@ function resizePetWindow() {
 }
 
 function applyPetLayout(layout) {
-  if (!petWindow || petWindow.isDestroyed() || (petEdgeState && !petEdgeState.dragging) || !layout || typeof layout !== 'object') return;
+  if (!petWindow || petWindow.isDestroyed() || !layout || typeof layout !== 'object') return;
   const bubble = layout.bubble?.visible ? layout.bubble : null;
   const menu = layout.menu?.visible ? layout.menu : null;
   const bounds = getPetBounds(bubble, layout.assetId, menu);
@@ -648,7 +594,7 @@ function createPetWindow() {
   petWindow.loadFile('pet.html');
   petWindow.on('show', () => petWindow?.webContents.send('pet:visibility', true));
   petWindow.on('hide', () => petWindow?.webContents.send('pet:visibility', false));
-  petWindow.on('closed', () => { stopPetEdgeAnimation(); petEdgeState = null; petWindow = null; });
+  petWindow.on('closed', () => { petWindow = null; });
   petWindow.webContents.on('render-process-gone', (_event, details) => writeLog(`桌宠渲染进程异常：${details.reason}`));
   return petWindow;
 }
@@ -720,7 +666,6 @@ function appIconPath() {
 
 function showPet() {
   const win = createPetWindow();
-  notePetActivity();
   win.showInactive();
 }
 
@@ -1211,6 +1156,7 @@ async function openInstalledPwa() {
 function setupIpc() {
   ipcMain.handle('app:get-info', () => ({ version: app.getVersion(), isPackaged: app.isPackaged, updater: publicUpdaterState() }));
   ipcMain.handle('app:check-for-updates', () => checkForUpdates());
+  ipcMain.handle('app:get-release-notes', () => getReleaseNotes());
   ipcMain.handle('config:get', () => publicConfig());
   ipcMain.handle('config:update', (_event, patch) => applyConfigPatch(patch));
   ipcMain.handle('assets:upload', uploadAssets);
@@ -1234,40 +1180,17 @@ function setupIpc() {
   ipcMain.handle('reminders:export', exportReminders);
   ipcMain.handle('reminders:template-save', (_event, csv) => saveReminderTemplate(csv));
   ipcMain.handle('pet:open-pwa', openInstalledPwa);
-  ipcMain.handle('pet:wake-edge', () => wakePetFromEdge());
-  ipcMain.handle('pet:finish-edge-wake', () => finishPetEdgeWake());
-  ipcMain.on('pet:activity', notePetActivity);
   ipcMain.on('pet:set-click-through', (_event, ignore) => setPetClickThrough(ignore));
   ipcMain.on('pet:update-layout', (_event, layout) => updatePetLayout(layout));
   ipcMain.on('pet:context-menu', showPetContextMenu);
   ipcMain.on('pet:move-by', (_event, delta) => {
     if (!petWindow || petWindow.isDestroyed()) return;
-    if (petEdgeState && !petEdgeState.dragging) return;
     const dx = Number(delta?.dx);
     const dy = Number(delta?.dy);
     if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
-    stopPetEdgeAnimation();
-    notePetActivity();
     const [x, y] = petWindow.getPosition();
-    if (petEdgeState?.dragging) {
-      const display = screen.getAllDisplays().find((item) => item.id === petEdgeState.displayId) || screen.getPrimaryDisplay();
-      const workArea = display.workArea;
-      const head = petWindow.getBounds();
-      const nextY = clamp(Math.round(y + dy), workArea.y, workArea.y + workArea.height - head.height);
-      const nextX = petEdgeState.edge === 'left' ? workArea.x : workArea.x + workArea.width - head.width;
-      config.position = { x: nextX, y: nextY };
-    } else {
-      config.position = { x: Math.round(x + dx), y: Math.round(y + dy) };
-    }
+    config.position = { x: Math.round(x + dx), y: Math.round(y + dy) };
     petWindow.setPosition(config.position.x, config.position.y, false);
-    if (!petEdgeState?.dragging) {
-      const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
-      const workArea = display.workArea;
-      const pointer = screen.getCursorScreenPoint();
-      const atLeft = pointer.x <= workArea.x;
-      const atRight = pointer.x >= workArea.x + workArea.width - 1;
-      if (atLeft || atRight) enterPetEdgeMode(true, atLeft ? 'left' : 'right');
-    }
     saveConfigSoon();
   });
 }
@@ -1303,4 +1226,4 @@ process.on('unhandledRejection', (error) => writeLog('未处理的 Promise 拒�
 
 app.on('activate', () => showPet());
 app.on('window-all-closed', () => { saveConfigNow(); });
-app.on('before-quit', () => { isQuitting = true; stopPetEdgeAnimation(); scheduler?.stop(); saveConfigNow(); });
+app.on('before-quit', () => { isQuitting = true; scheduler?.stop(); saveConfigNow(); });

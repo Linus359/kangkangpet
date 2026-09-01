@@ -5,6 +5,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('panelApi', {
   getAppInfo: () => ipcRenderer.invoke('app:get-info'),
   checkForUpdates: () => ipcRenderer.invoke('app:check-for-updates'),
+  getReleaseNotes: () => ipcRenderer.invoke('app:get-release-notes'),
   getConfig: () => ipcRenderer.invoke('config:get'),
   updateConfig: (patch) => ipcRenderer.invoke('config:update', patch),
   uploadAssets: () => ipcRenderer.invoke('assets:upload'),
