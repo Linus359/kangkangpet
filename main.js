@@ -83,6 +83,7 @@ let scheduler;
 let petWindow;
 let panelWindow;
 let quickReminderWindow;
+let forcomeWindow;
 let tray;
 let saveTimer;
 let isQuitting = false;
@@ -658,6 +659,28 @@ function createQuickReminderWindow() {
   return quickReminderWindow;
 }
 
+function createForcomeWindow() {
+  if (forcomeWindow && !forcomeWindow.isDestroyed()) {
+    forcomeWindow.show();
+    forcomeWindow.focus();
+    return forcomeWindow;
+  }
+  forcomeWindow = new BrowserWindow({
+    width: 1280,
+    height: 820,
+    minWidth: 900,
+    minHeight: 620,
+    title: 'FORCOME AI',
+    autoHideMenuBar: true,
+    backgroundColor: '#ffffff',
+    webPreferences: { contextIsolation: true, nodeIntegration: false }
+  });
+  forcomeWindow.loadURL(FORCOME_AI_URL);
+  forcomeWindow.on('closed', () => { forcomeWindow = null; });
+  forcomeWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => writeLog(`FORCOME AI 加载失败：${errorCode} ${errorDescription}`));
+  return forcomeWindow;
+}
+
 function appIconPath() {
   const ico = path.join(__dirname, 'build', 'face.ico');
   const png = path.join(__dirname, 'build', 'face.png');
@@ -1103,6 +1126,15 @@ async function installBrowserAppShortcut() {
 }
 
 async function openInstalledPwa() {
+  if (forcomeWindow && !forcomeWindow.isDestroyed()) {
+    forcomeWindow.show();
+    forcomeWindow.focus();
+    return { opened: true, installed: false, reused: true, message: '已打开原有 FORCOME AI 窗口。' };
+  }
+  // Keep one app-owned window so repeated double-clicks never create duplicates.
+  createForcomeWindow();
+  return { opened: true, installed: false, reused: false, message: '正在打开 FORCOME AI。' };
+  if (false) { // Legacy browser/PWA fallback retained for reference.
   // Prefer the browser-managed PWA proxy so a stale URL shortcut cannot change
   // the window chrome or launch mode.
   for (const candidate of browserAppCandidates()) {
@@ -1151,6 +1183,7 @@ async function openInstalledPwa() {
     writeLog('打开 FORCOME AI 网页失败。', error);
   }
   return { opened: false, installed: false, message: '无法打开 FORCOME AI，请检查浏览器或网络连接。' };
+  }
 }
 
 function setupIpc() {
