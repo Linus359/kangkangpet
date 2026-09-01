@@ -3,7 +3,7 @@
 const { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, Notification, powerMonitor, screen, shell, Tray } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const crypto = require('crypto');
-const { execFile, spawn } = require('child_process');
+const { spawn } = require('child_process');
 const fs = require('fs');
 const https = require('https');
 const path = require('path');
@@ -83,7 +83,6 @@ let scheduler;
 let petWindow;
 let panelWindow;
 let quickReminderWindow;
-let forcomeWindow;
 let tray;
 let saveTimer;
 let isQuitting = false;
@@ -659,36 +658,6 @@ function createQuickReminderWindow() {
   return quickReminderWindow;
 }
 
-function createForcomeWindow() {
-  if (forcomeWindow && !forcomeWindow.isDestroyed()) {
-    forcomeWindow.show();
-    forcomeWindow.focus();
-    return forcomeWindow;
-  }
-  forcomeWindow = new BrowserWindow({
-    width: 1280,
-    height: 820,
-    minWidth: 900,
-    minHeight: 620,
-    title: 'FORCOME AI',
-    autoHideMenuBar: true,
-    backgroundColor: '#ffffff',
-    webPreferences: { contextIsolation: true, nodeIntegration: false }
-  });
-  forcomeWindow.loadURL(FORCOME_AI_URL);
-  forcomeWindow.on('closed', () => { forcomeWindow = null; });
-  forcomeWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => writeLog(`FORCOME AI 加载失败：${errorCode} ${errorDescription}`));
-  return forcomeWindow;
-}
-
-function focusExistingForcomeWindow() {
-  if (process.platform !== 'win32') return Promise.resolve(false);
-  return new Promise((resolve) => {
-    const script = "$shell = New-Object -ComObject WScript.Shell; $hit = $false; Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle -match 'FORCOME|ai\\.forcome\\.com' } | ForEach-Object { if ($shell.AppActivate($_.Id)) { $hit = $true; break } }; if ($hit) { '1' } else { '0' }";
-    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-Command', script], { windowsHide: true }, (_error, stdout) => resolve(String(stdout || '').trim() === '1'));
-  });
-}
-
 function appIconPath() {
   const ico = path.join(__dirname, 'build', 'face.ico');
   const png = path.join(__dirname, 'build', 'face.png');
@@ -1134,20 +1103,8 @@ async function installBrowserAppShortcut() {
 }
 
 async function openInstalledPwa() {
-  if (forcomeWindow && !forcomeWindow.isDestroyed()) {
-    forcomeWindow.show();
-    forcomeWindow.focus();
-    return { opened: true, installed: false, reused: true, message: '已打开原有 FORCOME AI 窗口。' };
-  }
-  if (await focusExistingForcomeWindow()) {
-    return { opened: true, installed: true, reused: true, message: '已打开原有 FORCOME AI 窗口。' };
-  }
-  // Keep one app-owned window so repeated double-clicks never create duplicates.
-  createForcomeWindow();
-  return { opened: true, installed: false, reused: false, message: '正在打开 FORCOME AI。' };
-  if (false) { // Legacy browser/PWA fallback retained for reference.
-  // Prefer the browser-managed PWA proxy so a stale URL shortcut cannot change
-  // the window chrome or launch mode.
+  // Launch the browser-managed PWA entry. Chrome/Edge own the window identity
+  // and will focus an existing installed app instead of creating a duplicate.
   for (const candidate of browserAppCandidates()) {
     const executable = browserExecutable(candidate.browser);
     const proxy = candidate.browser === 'chrome'
@@ -1194,7 +1151,6 @@ async function openInstalledPwa() {
     writeLog('打开 FORCOME AI 网页失败。', error);
   }
   return { opened: false, installed: false, message: '无法打开 FORCOME AI，请检查浏览器或网络连接。' };
-  }
 }
 
 function setupIpc() {
