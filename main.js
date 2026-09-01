@@ -18,7 +18,6 @@ const { DEFAULT_PET_SIZE, MAX_PET_SIZE, MIN_PET_SIZE, chooseDefaultAsset, clampP
 
 const APP_NAME = '康康熊桌宠';
 const APP_ID = 'com.forcome.kangkangpet';
-const FORCOME_AI_URL = 'https://ai.forcome.com';
 const RELEASE_NOTES_URL = 'https://api.github.com/repos/Linus359/kangkangpet/releases?per_page=100';
 const FORCOME_AI_NAME_PATTERN = /forcome\s*ai|forcome/i;
 const ASSET_DIR_NAME = 'cat';
@@ -1071,40 +1070,21 @@ function launchDetached(executable, args) {
   }
 }
 
-async function installBrowserAppShortcut() {
-  const candidate = browserAppCandidates()[0];
-  const browser = candidate?.browser || ['chrome', 'edge'].find((name) => browserExecutable(name));
-  if (!browser || typeof shell.writeShortcutLink !== 'function') return null;
-  const executable = browserExecutable(browser);
-  const proxy = browser === 'chrome'
-    ? path.join(path.dirname(executable || ''), 'chrome_proxy.exe')
-    : path.join(path.dirname(executable || ''), 'msedge_proxy.exe');
-  const target = candidate?.appId && fs.existsSync(proxy) ? proxy : null;
-  if (!target) return null;
-  let shortcut;
-  try {
-    const shortcutDir = path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Chrome 应用');
-    fs.mkdirSync(shortcutDir, { recursive: true });
-    shortcut = path.join(shortcutDir, 'FORCOME AI.lnk');
-    const created = shell.writeShortcutLink(shortcut, fs.existsSync(shortcut) ? 'replace' : 'create', {
-      target,
-      args: `--profile-directory=${candidate.profileDirectory || 'Default'} --app-id=${candidate.appId}`,
-      cwd: path.dirname(target),
-      description: 'FORCOME AI · 内部 AI 门户'
-    });
-    if (!created) return null;
-    const error = await shell.openPath(shortcut);
-    if (!error) return shortcut;
-    writeLog(`无法打开自动创建的 FORCOME 快捷方式：${shortcut}`, new Error(error));
-  } catch (error) {
-    writeLog('自动创建 FORCOME AI 应用入口失败。', error);
-  }
-  return null;
-}
-
 async function openInstalledPwa() {
   // Launch the browser-managed PWA entry. Chrome/Edge own the window identity
   // and will focus an existing installed app instead of creating a duplicate.
+  const shortcuts = startMenuRoots().flatMap((root) => collectFiles(root, (_file, name) => /^FORCOME AI(?: \(\d+\))?\.lnk$/i.test(name), 4));
+  for (const shortcut of shortcuts) {
+    if (/\.lnk$/i.test(shortcut)) {
+      try {
+        const shortcutText = fs.readFileSync(shortcut, 'utf8');
+        if (/--app=https:\/\/ai\.forcome\.com/i.test(shortcutText)) continue;
+      } catch (_) { /* binary PWA shortcuts are opened by the shell below */ }
+    }
+    const error = await shell.openPath(shortcut);
+    if (!error) return { opened: true, installed: true, reused: true, message: '已打开原有 FORCOME AI 窗口。' };
+    writeLog(`无法打开 FORCOME 快捷方式：${shortcut}`, new Error(error));
+  }
   for (const candidate of browserAppCandidates()) {
     const executable = browserExecutable(candidate.browser);
     const proxy = candidate.browser === 'chrome'
@@ -1115,42 +1095,7 @@ async function openInstalledPwa() {
     }
   }
 
-  const shortcutNames = ['FORCOME AI.lnk', 'FORCOME AI.url', 'FORCOME.lnk'];
-  const shortcuts = startMenuRoots().flatMap((root) => collectFiles(root, (_file, name) => shortcutNames.includes(name), 4));
-  for (const shortcut of shortcuts) {
-    // A previously generated URL-style shortcut is not the installed PWA; skip it
-    // so the browser's real app-id entry can be selected below.
-    if (/\.lnk$/i.test(shortcut)) {
-      try {
-        const shortcutText = fs.readFileSync(shortcut, 'utf8');
-        if (/--app=https:\/\/ai\.forcome\.com/i.test(shortcutText)) continue;
-      } catch (_) { /* binary .lnk files are inspected by the shell below */ }
-    }
-    const error = await shell.openPath(shortcut);
-    if (!error) return { opened: true, installed: true, message: '正在打开 FORCOME AI。' };
-    writeLog(`无法打开 FORCOME 快捷方式：${shortcut}`, new Error(error));
-  }
-
-  if (await installBrowserAppShortcut()) {
-    return { opened: true, installed: true, message: '已自动创建并打开 FORCOME AI 应用入口。' };
-  }
-
-  for (const browser of ['chrome', 'edge']) {
-    const executable = browserExecutable(browser);
-    if (launchDetached(executable, [`--app=${FORCOME_AI_URL}`])) {
-      return { opened: true, installed: false, message: '正在打开 FORCOME AI 应用窗口。首次使用可在窗口菜单中安装。' };
-    }
-  }
-
-  try {
-    const opened = await shell.openExternal(FORCOME_AI_URL);
-    if (opened === undefined || opened === true) {
-      return { opened: true, installed: false, message: '正在打开 FORCOME AI。首次使用可在浏览器菜单中安装为应用。' };
-    }
-  } catch (error) {
-    writeLog('打开 FORCOME AI 网页失败。', error);
-  }
-  return { opened: false, installed: false, message: '无法打开 FORCOME AI，请检查浏览器或网络连接。' };
+  return { opened: false, installed: false, message: '未找到已安装的 FORCOME AI 浏览器应用，请先在 Chrome 或 Edge 中安装 PWA。' };
 }
 
 function setupIpc() {

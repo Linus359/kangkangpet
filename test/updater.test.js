@@ -49,18 +49,16 @@ test('keeps calendar creation in a date-triggered modal and provides an import t
   assert.match(panelSource, /function downloadReminderTemplate\(\)/);
 });
 
-test('opens FORCOME AI through installed shortcuts, browser apps, or a direct app window', () => {
-  assert.match(mainSource, /const FORCOME_AI_URL = 'https:\/\/ai\.forcome\.com';/);
+test('opens FORCOME AI only through an installed browser PWA', () => {
   assert.match(mainSource, /function startMenuRoots\(\)/);
   assert.match(mainSource, /function browserAppCandidates\(\)/);
-  assert.match(mainSource, /function installBrowserAppShortcut\(\)/);
-  assert.match(mainSource, /shell\.writeShortcutLink\(shortcut, fs\.existsSync\(shortcut\) \? 'replace' : 'create'/);
+  assert.match(mainSource, /async function openInstalledPwa\(\)/);
+  assert.match(mainSource, /shell\.openPath\(shortcut\)/);
   assert.match(mainSource, /--app-id=\$\{candidate\.appId\}/);
-  assert.match(mainSource, /--app=\$\{FORCOME_AI_URL\}/);
-  assert.match(mainSource, /--app-id=\$\{candidate\.appId\}/);
-  assert.match(mainSource, /--app=\$\{FORCOME_AI_URL\}/);
-  assert.match(mainSource, /shell\.openExternal\(FORCOME_AI_URL\)/);
-  assert.doesNotMatch(mainSource, /未找到已安装的 FORCOME 应用/);
+  assert.doesNotMatch(mainSource, /shell\.writeShortcutLink/);
+  assert.doesNotMatch(mainSource, /shell\.openExternal/);
+  assert.doesNotMatch(mainSource, /--app=\$\{FORCOME_AI_URL\}/);
+  assert.match(mainSource, /未找到已安装的 FORCOME AI 浏览器应用/);
 });
 
 test('publishes tagged releases through GitHub Actions', () => {
