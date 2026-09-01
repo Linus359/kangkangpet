@@ -3,7 +3,7 @@
 const { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, Notification, powerMonitor, screen, shell, Tray } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const crypto = require('crypto');
-const { spawn } = require('child_process');
+const { execFile, spawn } = require('child_process');
 const fs = require('fs');
 const https = require('https');
 const path = require('path');
@@ -681,6 +681,14 @@ function createForcomeWindow() {
   return forcomeWindow;
 }
 
+function focusExistingForcomeWindow() {
+  if (process.platform !== 'win32') return Promise.resolve(false);
+  return new Promise((resolve) => {
+    const script = "$shell = New-Object -ComObject WScript.Shell; $hit = $false; Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle -match 'FORCOME|ai\\.forcome\\.com' } | ForEach-Object { if ($shell.AppActivate($_.Id)) { $hit = $true; break } }; if ($hit) { '1' } else { '0' }";
+    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-Command', script], { windowsHide: true }, (_error, stdout) => resolve(String(stdout || '').trim() === '1'));
+  });
+}
+
 function appIconPath() {
   const ico = path.join(__dirname, 'build', 'face.ico');
   const png = path.join(__dirname, 'build', 'face.png');
@@ -1130,6 +1138,9 @@ async function openInstalledPwa() {
     forcomeWindow.show();
     forcomeWindow.focus();
     return { opened: true, installed: false, reused: true, message: '已打开原有 FORCOME AI 窗口。' };
+  }
+  if (await focusExistingForcomeWindow()) {
+    return { opened: true, installed: true, reused: true, message: '已打开原有 FORCOME AI 窗口。' };
   }
   // Keep one app-owned window so repeated double-clicks never create duplicates.
   createForcomeWindow();
