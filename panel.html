@@ -303,7 +303,7 @@
       const reminder = config?.reminders?.find((item) => item.id === String(reminderId)); if (!reminder) return;
       const result = await api.saveReminder({ ...reminder, repeat: 'once', date: targetDate, weekdays: [], intervalMinutes: null, nextTriggerAt: null, lastTriggeredAt: null });
       if (!result.ok) return say(result.errors.join(' '));
-      config = result.config; selectedDate = targetDate; monthCursor = new Date(fromKey(targetDate).getFullYear(), fromKey(targetDate).getMonth(), 1); renderAll(); say(`日程已移至 ${formatDateLabel(targetDate)}`);
+      config = result.config; renderAll(); say(`日程已移至 ${formatDateLabel(targetDate)}`);
     }
     function selectMiniCalendarDate(key) {
       if (!$('#remindersTab').classList.contains('active')) return selectCalendarDate(key, { center: true });
@@ -365,6 +365,7 @@
        if (visibleMonth.getTime() !== monthCursor.getTime()) { monthCursor = visibleMonth; $('#monthLabel').textContent = formatMonth(monthCursor); renderMiniCalendar(); }
        const atStart = scroll.scrollTop < 18; const atEnd = scroll.scrollTop + scroll.clientHeight > scroll.scrollHeight - 18;
        if (!atStart && !atEnd) return;
+       if (draggingId) return;
        const relativeOffset = scroll.scrollTop - closest.offsetTop;
        monthStackResetPending = true;
        const scheduledToken = monthStackRenderToken; requestAnimationFrame(() => { if (scheduledToken !== monthStackRenderToken) { monthStackResetPending = false; return; } renderMonthGrid(relativeOffset); monthStackResetPending = false; });
@@ -479,7 +480,7 @@
     editor.addEventListener('submit', async (event) => { event.preventDefault(); const repeat = $('#repeat').value; const data = { id:$('#reminderId').value || undefined, title:$('#reminderTitle').value, message:$('#reminderMessage').value, notificationMode:$('#notificationMode').value, strongReminder:$('#strongReminder').checked, repeat, time:$('#reminderTime').value, date:$('#reminderDate').value, weekdays:selectedWeekdays(), intervalMinutes:Number($('#intervalMinutes').value), enabled:$('#reminderEnabled').checked }; if (repeat === 'weekly' && data.weekdays.length > 1) data.weekdays = [data.weekdays[0]]; const result = pendingDraftId ? await api.promoteReminderDraft(pendingDraftId, data) : await api.saveReminder(data); if (!result.ok) return say(result.errors.join(' ')); config = result.config; closeEditor(); renderAll(); say('提醒已保存'); });
     $('#repeat').dispatchEvent(new Event('change'));
     api.onConfigChanged((nextConfig) => { config = nextConfig; renderAll(); }); api.onUpdateStatus(applyUpdateStatus); api.onOpenTab((tab) => switchTab(tab));
-    api.getAppInfo().then((nextInfo) => { appInfo = nextInfo; renderAppInfo(); }).catch(() => { appVersion.textContent = '未知'; updateStatus.textContent = '无法读取应用信息'; }); api.getConfig().then((nextConfig) => { config = nextConfig; renderAll(); switchTab('calendar'); });
+    api.getAppInfo().then((nextInfo) => { appInfo = nextInfo; renderAppInfo(); }).catch(() => { appVersion.textContent = '未知'; updateStatus.textContent = '无法读取应用信息'; }); api.getConfig().then((nextConfig) => { config = nextConfig; switchTab('calendar'); renderReminders(); renderSettings(); buttonCount.textContent = `${config?.interactionButtons?.length || 0} 个`; decorateStrongReminderToggles(); });
   </script>
 </body>
 </html>
