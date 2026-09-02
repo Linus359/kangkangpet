@@ -290,6 +290,18 @@
     function notificationText(reminder) { const base = reminder.notificationMode === 'both' ? '气泡和系统通知' : reminder.notificationMode === 'bubble' ? '仅桌宠气泡' : '仅系统通知'; return reminder.strongReminder ? `${base} · 强提醒` : base; }
 
     function eventsForDate(key) { return (config?.reminders || []).filter((reminder) => reminderOnDate(reminder, key)).sort((left, right) => String(left.time || '').localeCompare(String(right.time || '')) || Number(left.sortOrder) - Number(right.sortOrder)); }
+    function monthSectionTop(section, container = $('#monthGrid')) { return section.offsetTop - container.offsetTop; }
+    function captureMonthViewport() {
+      if (!$('#calendarTab').classList.contains('active') || calendarView !== 'month') return null;
+      const scroll = $('#monthScroll'); const container = $('#monthGrid'); const sections = [...container.querySelectorAll('.calendar-month-section')];
+      if (!sections.length) return null;
+      const anchor = sections.reduce((best, section) => Math.abs(monthSectionTop(section, container) - scroll.scrollTop) < Math.abs(monthSectionTop(best, container) - scroll.scrollTop) ? section : best, sections[0]);
+      return { month: anchor.dataset.month, offset: scroll.scrollTop - monthSectionTop(anchor, container) };
+    }
+    function restoreMonthViewport(anchor) {
+      if (!anchor) return;
+      requestAnimationFrame(() => { const scroll = $('#monthScroll'); const container = $('#monthGrid'); const section = container.querySelector(`.calendar-month-section[data-month="${anchor.month}"]`); if (section) scroll.scrollTop = Math.max(0, monthSectionTop(section, container) + anchor.offset); });
+    }
     function centerCalendarDate(key) { if (calendarView !== 'month') return; requestAnimationFrame(() => { const scroll = $('#monthScroll'); const cell = [...document.querySelectorAll('#monthGrid .calendar-cell')].find((item) => item.dataset.date === key); if (!scroll || !cell) return; const scrollRect = scroll.getBoundingClientRect(); const cellRect = cell.getBoundingClientRect(); const target = scroll.scrollTop + (cellRect.top - scrollRect.top) - (scroll.clientHeight - cell.offsetHeight) / 2; scroll.scrollTop = Math.max(0, Math.min(target, scroll.scrollHeight - scroll.clientHeight)); }); }
     function selectCalendarDate(key, { center = false } = {}) { const date = fromKey(key); const sameMonth = date.getFullYear() === monthCursor.getFullYear() && date.getMonth() === monthCursor.getMonth(); selectedDate = key; if (calendarView === 'month' && sameMonth && $('#monthScroll')) { document.querySelectorAll('#monthGrid .calendar-cell.selected').forEach((cell) => cell.classList.remove('selected')); const cell = [...document.querySelectorAll('#monthGrid .calendar-cell')].find((item) => item.dataset.date === key); cell?.classList.add('selected'); renderMiniCalendar(); renderTodayOverview(); $('#calendarDayHeading').textContent = formatDateLabel(selectedDate); $('#calendarDayMeta').textContent = eventsForDate(selectedDate).length ? `${eventsForDate(selectedDate).length} 条安排` : '空闲'; calendarQuickDate.value = selectedDate; calendarQuickDateLabel.textContent = `当前选择：${formatDateLabel(selectedDate)}`; if (center) centerCalendarDate(key); return; } monthCursor = new Date(date.getFullYear(), date.getMonth(), 1); renderCalendar(); if (center) centerCalendarDate(key); }
     function focusQuickForm(key = selectedDate, reminder = null) { selectCalendarDate(key); calendarQuickReminder = reminder; calendarQuickDate.value = reminder?.date || key; calendarQuickTime.value = reminder?.time || futureTime(key); calendarQuickTitle.value = reminder?.title || ''; calendarQuickMessage.value = reminder?.message || ''; calendarQuickStrongReminder.checked = reminder?.strongReminder === true; calendarQuickModal.querySelector('#calendarQuickModalTitle').textContent = reminder ? '编辑日程' : '新建日程'; calendarQuickDate.disabled = Boolean(reminder && reminder.repeat !== 'once'); calendarQuickModal.hidden = false; calendarQuickTitle.focus(); }
@@ -331,7 +343,7 @@
         for (let index = 0; index < cellCount; index += 1) { const date = new Date(start); date.setDate(start.getDate() + index); const key = dateKey(date); const isCurrentMonth = index >= monthOffset && index < monthOffset + daysInMonth; const events = isCurrentMonth ? eventsForDate(key) : []; const cell = document.createElement('article'); cell.dataset.date = isCurrentMonth ? key : ''; cell.className = `calendar-cell ${!isCurrentMonth ? 'outside' : ''} ${isCurrentMonth && key === todayKey() ? 'today' : ''} ${isCurrentMonth && key === selectedDate ? 'selected' : ''}`; if (isCurrentMonth) attachDateDropTarget(cell, key); const number = document.createElement('div'); number.className = 'day-number'; const day = document.createElement('span'); day.textContent = isCurrentMonth ? date.getDate() : ''; const count = document.createElement('span'); count.textContent = events.length ? `${events.length} 条` : ''; number.append(day, count); const eventBox = document.createElement('div'); eventBox.className = 'cell-events'; events.forEach((reminder) => { const chip = document.createElement('div'); chip.className = `event-chip ${reminder.enabled === false ? 'disabled' : ''}`; chip.draggable = true; chip.dataset.id = reminder.id; chip.textContent = reminder.title; chip.title = `${reminder.title} · ${scheduleText(reminder)}（双击编辑，可拖到其他日期）`; chip.addEventListener('dblclick', (event) => { event.stopPropagation(); focusQuickForm(key, reminder); }); chip.addEventListener('dragstart', (event) => { draggingId = reminder.id; chip.classList.add('dragging'); event.dataTransfer?.setData('text/plain', reminder.id); if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'; }); chip.addEventListener('dragend', () => { draggingId = null; chip.classList.remove('dragging'); document.querySelectorAll('.drop-target').forEach((item) => item.classList.remove('drop-target')); }); eventBox.append(chip); }); cell.append(number, eventBox); if (isCurrentMonth) cell.addEventListener('dblclick', () => focusQuickForm(key)); grid.append(cell); }
         section.append(heading, grid); container.append(section);
       });
-      requestAnimationFrame(() => { if (renderToken !== monthStackRenderToken) return; const current = container.querySelector('.calendar-month-section[data-month="' + `${monthCursor.getFullYear()}-${String(monthCursor.getMonth() + 1).padStart(2, '0')}` + '"]'); if (current) scroll.scrollTop = Math.max(0, current.offsetTop + scrollOffset); });
+      requestAnimationFrame(() => { if (renderToken !== monthStackRenderToken) return; const current = container.querySelector('.calendar-month-section[data-month="' + `${monthCursor.getFullYear()}-${String(monthCursor.getMonth() + 1).padStart(2, '0')}` + '"]'); if (current) scroll.scrollTop = Math.max(0, monthSectionTop(current, container) + scrollOffset); });
     }
     function renderYearGrid() {
       const year = monthCursor.getFullYear(); const container = $('#yearGrid'); container.innerHTML = ''; const weekdayMarkup = weekdayNames.map((name) => `<span>${name.slice(1)}</span>`).join('');
@@ -360,15 +372,15 @@
      function shiftMonth(offset) { miniSlideDirection = offset > 0 ? 1 : -1; monthCursor = new Date(monthCursor.getFullYear(), monthCursor.getMonth() + offset, 1); if (calendarView === 'month' && (fromKey(selectedDate).getFullYear() !== monthCursor.getFullYear() || fromKey(selectedDate).getMonth() !== monthCursor.getMonth())) selectedDate = dateKey(monthCursor); renderCalendar(); }
      function syncMonthStack() {
        const scroll = $('#monthScroll'); const sections = [...$('#monthGrid').querySelectorAll('.calendar-month-section')]; if (!sections.length || monthStackResetPending) return;
-       const middle = scroll.scrollTop + scroll.clientHeight / 2; const closest = sections.reduce((best, section) => Math.abs(section.offsetTop + section.offsetHeight / 2 - middle) < Math.abs(best.offsetTop + best.offsetHeight / 2 - middle) ? section : best, sections[0]);
+       const container = $('#monthGrid'); const middle = scroll.scrollTop + scroll.clientHeight / 2; const closest = sections.reduce((best, section) => Math.abs(monthSectionTop(section, container) + section.offsetHeight / 2 - middle) < Math.abs(monthSectionTop(best, container) + best.offsetHeight / 2 - middle) ? section : best, sections[0]);
        const [year, month] = closest.dataset.month.split('-').map(Number); const visibleMonth = new Date(year, month - 1, 1);
        if (visibleMonth.getTime() !== monthCursor.getTime()) { monthCursor = visibleMonth; $('#monthLabel').textContent = formatMonth(monthCursor); renderMiniCalendar(); }
        const atStart = scroll.scrollTop < 18; const atEnd = scroll.scrollTop + scroll.clientHeight > scroll.scrollHeight - 18;
        if (!atStart && !atEnd) return;
        if (draggingId) return;
-       const relativeOffset = scroll.scrollTop - closest.offsetTop;
+       const relativeOffset = scroll.scrollTop - monthSectionTop(closest, container);
        monthStackResetPending = true;
-       const scheduledToken = monthStackRenderToken; requestAnimationFrame(() => { if (scheduledToken !== monthStackRenderToken) { monthStackResetPending = false; return; } renderMonthGrid(relativeOffset); monthStackResetPending = false; });
+       const scheduledToken = monthStackRenderToken; requestAnimationFrame(() => { if (scheduledToken !== monthStackRenderToken || draggingId) { monthStackResetPending = false; return; } renderMonthGrid(relativeOffset); monthStackResetPending = false; });
      }
 
     function renderBulkActions(reminders) { const visibleIds = new Set(reminders.map((item) => item.id)); const selectedCount = [...selectedReminderIds].filter((id) => visibleIds.has(id)).length; selectAllReminders.checked = reminders.length > 0 && selectedCount === reminders.length; selectAllReminders.indeterminate = selectedCount > 0 && selectedCount < reminders.length; selectAllReminders.disabled = !reminders.length; enableSelected.disabled = !selectedCount; disableSelected.disabled = !selectedCount; deleteSelected.disabled = !selectedCount; clearSelection.disabled = !selectedCount; bulkSummary.textContent = selectedCount ? `已选择 ${selectedCount}/${reminders.length} 条` : `当前显示 ${reminders.length} 条`; }
@@ -455,7 +467,7 @@
     }
     const reminderListObserver = new MutationObserver(() => decorateStrongReminderToggles());
     reminderListObserver.observe(reminderList, { childList: true });
-    function renderAll() { renderCalendar(); renderReminders(); renderSettings(); buttonCount.textContent = `${config?.interactionButtons?.length || 0} 个`; decorateStrongReminderToggles(); }
+    function renderAll() { const monthViewport = captureMonthViewport(); renderCalendar(); restoreMonthViewport(monthViewport); renderReminders(); renderSettings(); buttonCount.textContent = `${config?.interactionButtons?.length || 0} 个`; decorateStrongReminderToggles(); }
 
     document.querySelectorAll('.tab-button').forEach((button) => button.addEventListener('click', () => switchTab(button.dataset.tab)));
     function shiftMonthFromWheel(event) {
