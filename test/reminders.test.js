@@ -7,6 +7,7 @@ const {
   isValidDate,
   isValidTime,
   mergeImportedReminders,
+  nextNotificationAt,
   nextTriggerAt,
   normalizeReminder,
   normalizeReminders,
@@ -108,7 +109,7 @@ test('preserves reminder source metadata in normalized backups', () => {
   const sourced = reminder({ source: { type: 'audio', name: '会议录音.m4a', path: 'C:/media/meeting.m4a' } });
   assert.deepEqual(sourced.source, { type: 'audio', name: '会议录音.m4a', path: 'C:/media/meeting.m4a', text: '' });
   const payload = JSON.parse(serializeReminderBackup([sourced], '2026-01-01T00:00:00.000Z'));
-  assert.equal(payload.reminderFeatureVersion, 3);
+  assert.equal(payload.reminderFeatureVersion, 4);
   assert.equal(payload.reminders[0].source.type, 'audio');
 });
 
@@ -311,4 +312,36 @@ test('normalizes strong reminders for persistent acknowledgement', () => {
   assert.equal(normalized.strongReminder, true);
   const legacy = normalizeReminder({ title: '旧字段', repeat: 'daily', time: '09:00', persistent: true }, 0, at('2026-01-01T08:00:00'));
   assert.equal(legacy.strongReminder, true);
+});
+
+test('keeps the scheduled occurrence while calculating an early notification', () => {
+  const scheduled = localAt(2026, 1, 1, 9, 0).toISOString();
+  const early = reminder({ nextTriggerAt: scheduled, reminderOffsetMinutes: 5 });
+  assert.equal(early.reminderOffsetMinutes, 5);
+  assert.equal(nextNotificationAt(early).toISOString(), localAt(2026, 1, 1, 8, 55).toISOString());
+  assert.equal(reminder({ reminderOffsetMinutes: 7 }).reminderOffsetMinutes, 0);
+});
+
+test('scheduler sends an early reminder once and retains the real scheduled time', async () => {
+  let current = localAt(2026, 1, 1, 8, 55);
+  const records = normalizeReminders([
+    reminder({ id: 'early', time: '09:00', reminderOffsetMinutes: 5 })
+  ], localAt(2026, 1, 1, 8, 50));
+  const notified = [];
+  const scheduler = new ReminderScheduler({
+    getReminders: () => records,
+    saveReminders: () => {},
+    notify: async (item) => notified.push(item),
+    now: () => current
+  });
+  scheduler.running = true;
+  await scheduler.runDueCheck();
+  scheduler.stop();
+  assert.equal(notified.length, 1);
+  assert.equal(notified[0].scheduledAt, localAt(2026, 1, 1, 9).toISOString());
+  current = localAt(2026, 1, 1, 9, 0);
+  scheduler.running = true;
+  await scheduler.runDueCheck();
+  scheduler.stop();
+  assert.equal(notified.length, 1);
 });

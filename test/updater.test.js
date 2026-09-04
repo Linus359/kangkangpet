@@ -8,6 +8,7 @@ const assert = require('node:assert/strict');
 const root = path.join(__dirname, '..');
 const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const mainSource = fs.readFileSync(path.join(root, 'main.js'), 'utf8');
+const pwaSource = fs.readFileSync(path.join(root, 'src', 'main', 'pwa-launcher.js'), 'utf8');
 const panelSource = fs.readFileSync(path.join(root, 'panel.html'), 'utf8');
 const panelPreloadSource = fs.readFileSync(path.join(root, 'preload', 'panel-preload.js'), 'utf8');
 const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'release.yml'), 'utf8');
@@ -49,16 +50,16 @@ test('keeps calendar creation in a date-triggered modal and provides an import t
   assert.match(panelSource, /function downloadReminderTemplate\(\)/);
 });
 
-test('opens FORCOME AI only through an installed browser PWA', () => {
-  assert.match(mainSource, /function startMenuRoots\(\)/);
-  assert.match(mainSource, /function browserAppCandidates\(\)/);
-  assert.match(mainSource, /async function openInstalledPwa\(\)/);
-  assert.match(mainSource, /shell\.openPath\(shortcut\)/);
-  assert.match(mainSource, /--app-id=\$\{candidate\.appId\}/);
-  assert.doesNotMatch(mainSource, /shell\.writeShortcutLink/);
-  assert.doesNotMatch(mainSource, /shell\.openExternal/);
-  assert.doesNotMatch(mainSource, /--app=\$\{FORCOME_AI_URL\}/);
-  assert.match(mainSource, /未找到已安装的 FORCOME AI 浏览器应用/);
+test('opens the configured PWA through the main process with browser fallback', () => {
+  assert.match(pwaSource, /function normalizePwaConfig\(value\)/);
+  assert.match(pwaSource, /launchCommand: normalizeLaunchCommand\(source\.launchCommand\)/);
+  assert.match(pwaSource, /shell|openExternal/);
+  assert.match(pwaSource, /shell: false/);
+  assert.match(pwaSource, /fallbackToBrowser/);
+  assert.match(mainSource, /ipcMain\.handle\('pet:open-pwa'/);
+  assert.match(mainSource, /openPwa\(config\?\.pwa/);
+  assert.doesNotMatch(mainSource, /startMenuRoots|browserAppCandidates|openInstalledPwa/);
+  assert.doesNotMatch(pwaSource, /Chrome\.exe|Edge\.exe|Program Files/);
 });
 
 test('publishes tagged releases through GitHub Actions', () => {

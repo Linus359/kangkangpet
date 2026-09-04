@@ -4,6 +4,7 @@ const crypto = require('crypto');
 
 const VALID_REPEATS = new Set(['daily', 'weekly', 'custom', 'interval', 'once']);
 const VALID_NOTIFICATION_MODES = new Set(['bubble', 'system', 'both']);
+const VALID_REMINDER_OFFSETS = new Set([0, 5, 10, 15, 30]);
 const MAX_INTERVAL_MINUTES = 525600;
 const WEEKDAY_NAMES = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 
@@ -85,6 +86,11 @@ function validInterval(value) {
   return Number.isInteger(interval) && interval >= 1 && interval <= MAX_INTERVAL_MINUTES;
 }
 
+function normalizeReminderOffset(value) {
+  const offset = Number(value);
+  return VALID_REMINDER_OFFSETS.has(offset) ? offset : 0;
+}
+
 function normalizeSource(value) {
   if (!value || typeof value !== 'object') return null;
   const type = asString(value.type || value.sourceType).toLowerCase();
@@ -119,6 +125,7 @@ function normalizeReminder(input = {}, index = 0, now = new Date()) {
       ? Number(input.intervalMinutes ?? input.interval_minutes)
       : null,
     notificationMode: normalizedNotificationMode(input.notificationMode || input.notify_mode),
+    reminderOffsetMinutes: normalizeReminderOffset(input.reminderOffsetMinutes ?? input.reminder_offset_minutes),
     strongReminder: input.strongReminder === true || input.strong_reminder === true || input.persistent === true,
     source: normalizeSource(input.source || (input.sourceType ? input : null)),
     createdAt,
@@ -185,6 +192,15 @@ function nextTriggerAt(reminder, now = new Date()) {
     if (weekdays.includes(localWeekday(candidate)) && candidate.getTime() >= current.getTime()) return candidate;
   }
   return null;
+}
+
+// Keep the scheduled occurrence separate from its notification time. This lets
+// countdowns and calendars describe the real appointment while the scheduler
+// wakes up early without introducing a second timer or duplicate state.
+function nextNotificationAt(reminder) {
+  const scheduled = parseIso(reminder?.nextTriggerAt);
+  if (!scheduled || reminder?.enabled === false) return null;
+  return new Date(scheduled.getTime() - normalizeReminderOffset(reminder.reminderOffsetMinutes) * 60 * 1000);
 }
 
 function setNextTrigger(reminder, now = new Date(), force = false) {
@@ -292,6 +308,8 @@ module.exports = {
   isValidTime,
   mergeImportedReminders,
   nextTriggerAt,
+  nextNotificationAt,
+  normalizeReminderOffset,
   normalizeReminder,
   normalizeSource,
   normalizeReminders,

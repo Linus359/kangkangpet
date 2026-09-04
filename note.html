@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>便利贴</title>
+  <style>
+    :root { color:#302b24; background:#fff4a8; font-family:"Microsoft YaHei",sans-serif; }
+    * { box-sizing:border-box; }
+    html,body { width:100%; height:100%; margin:0; overflow:hidden; }
+    body { display:grid; grid-template-rows:42px minmax(0,1fr); border:1px solid #d5b94b; background:#fff4a8; }
+    header { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:8px; padding:6px 7px 6px 11px; border-bottom:1px solid rgba(132,99,27,.22); background:#ffe887; -webkit-app-region:drag; }
+    #title { min-width:0; border:0; outline:0; color:#302b24; background:transparent; font:700 14px "Microsoft YaHei",sans-serif; -webkit-app-region:no-drag; }
+    .actions { display:flex; gap:4px; -webkit-app-region:no-drag; }
+    button { width:28px; height:28px; border:0; border-radius:4px; color:#5a471b; background:transparent; font:600 16px sans-serif; cursor:pointer; }
+    button:hover { background:rgba(132,99,27,.16); }
+    button.active { color:#fff; background:#a36b20; }
+    #content { width:100%; height:100%; min-height:0; resize:none; border:0; outline:0; padding:12px; color:#302b24; background:#fff8c9; font:14px/1.55 "Microsoft YaHei",sans-serif; }
+    #tasks { display:grid; min-height:0; grid-template-rows:auto minmax(0,1fr); gap:8px; padding:10px; overflow:hidden; background:#fff8c9; }
+    #tasks[hidden] { display:none; } .task-add { display:grid; grid-template-columns:minmax(0,1fr) 76px 64px 48px; gap:6px; }
+    .task-add input,.subtask-add input { min-width:0; border:1px solid #d5b94b; border-radius:3px; padding:6px; background:#fffdf1; color:#302b24; font:13px "Microsoft YaHei",sans-serif; }
+    .task-add select { border:1px solid #d5b94b; border-radius:3px; background:#fffdf1; color:#302b24; font:12px "Microsoft YaHei",sans-serif; }
+    .task-add button,.subtask-add button { width:auto; height:auto; padding:5px 7px; border:1px solid #d5b94b; border-radius:3px; background:#fff1a6; font-size:12px; }
+    #taskList { display:grid; align-content:start; gap:7px; overflow:auto; padding-right:2px; } .task { padding:7px; border:1px solid rgba(132,99,27,.25); border-left:4px solid #789d6f; background:#fffdf1; } .task.high { border-left-color:#b65444; } .task.low { border-left-color:#7197b8; }
+    .task-row { display:grid; grid-template-columns:auto minmax(0,1fr) auto auto; align-items:center; gap:6px; } .task-row input[type=checkbox],.subtask input[type=checkbox] { width:15px; height:15px; margin:0; accent-color:#a36b20; } .task-title { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; } .task.done .task-title,.subtask.done span { color:#8b8067; text-decoration:line-through; } .task-meta { color:#715a2b; font-size:11px; } .task-remove { width:20px; height:20px; font-size:15px; }
+    .subtasks { display:grid; gap:4px; padding:6px 0 0 21px; } .subtask { display:grid; grid-template-columns:auto minmax(0,1fr); gap:6px; align-items:center; color:#5b4a27; font-size:12px; } .subtask-add { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:5px; margin:6px 0 0 21px; }
+  </style>
+</head>
+<body>
+  <header>
+    <input id="title" maxlength="120" aria-label="便利贴标题" placeholder="未命名便利贴">
+    <div class="actions">
+      <button id="mode" type="button" title="切换任务清单" aria-label="切换任务清单">✓</button>
+      <button id="alwaysOnTop" type="button" title="置顶" aria-label="置顶">↑</button>
+      <button id="delete" type="button" title="删除" aria-label="删除">×</button>
+      <button id="hide" type="button" title="隐藏" aria-label="隐藏">−</button>
+    </div>
+  </header>
+  <textarea id="content" maxlength="20000" aria-label="便利贴正文" placeholder="输入内容..."></textarea>
+  <section id="tasks" hidden aria-label="任务清单">
+    <div class="task-add"><input id="newTask" maxlength="240" placeholder="添加任务"><select id="newPriority" aria-label="优先级"><option value="high">高优先级</option><option value="normal" selected>普通</option><option value="low">低优先级</option></select><select id="newRepeat" aria-label="重复"><option value="none" selected>一次</option><option value="daily">每天</option></select><button id="addTask" type="button">添加</button></div>
+    <div id="taskList"></div>
+  </section>
+  <script>
+    (() => {
+      const api = window.noteApi;
+      const title = document.querySelector('#title');
+      const content = document.querySelector('#content');
+      const alwaysOnTop = document.querySelector('#alwaysOnTop'); const mode = document.querySelector('#mode'); const tasks = document.querySelector('#tasks'); const taskList = document.querySelector('#taskList'); const newTask = document.querySelector('#newTask'); const newPriority = document.querySelector('#newPriority'); const newRepeat = document.querySelector('#newRepeat');
+      let note = null; let saveTimer = null;
+      const make = (tag, className, value) => { const element = document.createElement(tag); if (className) element.className = className; if (value !== undefined) element.textContent = value; return element; };
+      const taskPriority = { high:'高', normal:'普通', low:'低' };
+      const renderTasks = () => { taskList.innerHTML = ''; const values = note?.tasks || []; if (!values.length) { taskList.append(make('div', 'task-meta', '还没有任务。任务可添加子任务；每日任务会在新的一天自动重置。')); return; } values.forEach((task) => { const article = make('article', `task ${task.priority} ${task.completed ? 'done' : ''}`); const row = make('div','task-row'); const checked = document.createElement('input'); checked.type='checkbox'; checked.checked=task.completed; checked.addEventListener('change', () => updateTasks(values.map((item) => item.id === task.id ? { ...item, completed:checked.checked } : item))); const label = make('span','task-title',task.title); label.title=task.title; const meta=make('span','task-meta',`${taskPriority[task.priority]}${task.repeat === 'daily' ? ' · 每日' : ''}`); const remove=make('button','task-remove','×'); remove.type='button'; remove.title='删除任务'; remove.addEventListener('click', () => updateTasks(values.filter((item) => item.id !== task.id))); row.append(checked,label,meta,remove); article.append(row); const subs=make('div','subtasks'); (task.subtasks || []).forEach((subtask) => { const sub=make('label',`subtask ${subtask.completed ? 'done' : ''}`); const subCheck=document.createElement('input'); subCheck.type='checkbox'; subCheck.checked=subtask.completed; subCheck.addEventListener('change', () => updateTasks(values.map((item) => item.id === task.id ? { ...item, subtasks:item.subtasks.map((child) => child.id === subtask.id ? { ...child, completed:subCheck.checked } : child) } : item))); sub.append(subCheck,make('span','',subtask.title)); subs.append(sub); }); article.append(subs); const add=make('div','subtask-add'); const input=document.createElement('input'); input.maxLength=240; input.placeholder='添加子任务'; const addButton=make('button','', '添加'); addButton.type='button'; const addSubtask=() => { const value=input.value.trim(); if (!value) return; updateTasks(values.map((item) => item.id === task.id ? { ...item, subtasks:[...(item.subtasks || []), { id:crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`, title:value, completed:false }] } : item)); }; addButton.addEventListener('click',addSubtask); input.addEventListener('keydown',(event) => { if (event.key === 'Enter') { event.preventDefault(); addSubtask(); } }); add.append(input,addButton); article.append(add); taskList.append(article); }); };
+      const render = (next) => { if (!next) return; note = next; if (document.activeElement !== title) title.value = note.title; if (document.activeElement !== content) content.value = note.content; const taskMode=note.mode === 'tasks'; content.hidden=taskMode; tasks.hidden=!taskMode; mode.classList.toggle('active',taskMode); mode.title=taskMode ? '切换为普通备忘' : '切换为任务清单'; alwaysOnTop.classList.toggle('active', note.alwaysOnTop); alwaysOnTop.title = note.alwaysOnTop ? '取消置顶' : '置顶'; document.title = note.title || '便利贴'; if (taskMode) renderTasks(); };
+      const save = async () => { saveTimer = null; const result = await api.update({ title:title.value, content:content.value }); if (result?.ok) render(result.note); };
+      const updateTasks = async (nextTasks) => { const result = await api.update({ tasks:nextTasks }); if (result?.ok) render(result.note); };
+      const scheduleSave = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => { save().catch(() => {}); }, 500); };
+      title.addEventListener('input', scheduleSave); content.addEventListener('input', scheduleSave);
+      title.addEventListener('blur', () => { clearTimeout(saveTimer); save().catch(() => {}); }); content.addEventListener('blur', () => { clearTimeout(saveTimer); save().catch(() => {}); });
+      document.querySelector('#hide').addEventListener('click', () => api.hide());
+      document.querySelector('#delete').addEventListener('click', async () => { if (!confirm('确定删除当前便利贴？删除后无法恢复。')) return; const result = await api.remove(); if (!result?.ok) alert(result?.error || '删除便利贴失败，请重试。'); });
+      alwaysOnTop.addEventListener('click', async () => { const result = await api.toggleAlwaysOnTop(); if (result?.ok) render(result.note); });
+      mode.addEventListener('click', async () => { const result = await api.update({ mode:note?.mode === 'tasks' ? 'note' : 'tasks' }); if (result?.ok) render(result.note); });
+      const addTask = () => { const value=newTask.value.trim(); if (!value) return; updateTasks([...(note?.tasks || []), { id:crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`, title:value, priority:newPriority.value, repeat:newRepeat.value, completed:false, subtasks:[] }]).then(() => { newTask.value=''; }); };
+      document.querySelector('#addTask').addEventListener('click',addTask); newTask.addEventListener('keydown',(event) => { if (event.key === 'Enter') { event.preventDefault(); addTask(); } });
+      api.onChanged(render); api.onError((message) => alert(message)); api.get().then((result) => { if (result?.ok) render(result.note); else alert(result?.error || '无法加载便利贴。'); });
+    })();
+  </script>
+</body>
+</html>

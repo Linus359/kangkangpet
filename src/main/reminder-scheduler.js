@@ -1,6 +1,6 @@
 'use strict';
 
-const { nextTriggerAt } = require('./reminders');
+const { nextNotificationAt, nextTriggerAt } = require('./reminders');
 
 const DEFAULT_GRACE_MS = 5 * 60 * 1000;
 const CLOCK_CHECK_MS = 5 * 60 * 1000;
@@ -61,8 +61,8 @@ class ReminderScheduler {
         reminder.nextTriggerAt = nextTriggerAt(reminder, now)?.toISOString() || null;
         changed = true;
       }
-      const scheduled = parseIso(reminder.nextTriggerAt);
-      if (scheduled && (!earliest || scheduled < earliest)) earliest = scheduled;
+      const notificationAt = nextNotificationAt(reminder);
+      if (notificationAt && (!earliest || notificationAt < earliest)) earliest = notificationAt;
     }
 
     if (changed) this.saveReminders(reason);
@@ -90,7 +90,9 @@ class ReminderScheduler {
       if (!reminder.enabled) continue;
       const scheduled = parseIso(reminder.nextTriggerAt);
       if (!scheduled) continue;
-      const delay = now.getTime() - scheduled.getTime();
+      const notificationAt = nextNotificationAt(reminder);
+      if (!notificationAt) continue;
+      const delay = now.getTime() - notificationAt.getTime();
       if (delay < 0) continue;
       if (delay > this.graceMs) {
         reminder.nextTriggerAt = nextTriggerAt(reminder, now)?.toISOString() || null;
@@ -109,7 +111,7 @@ class ReminderScheduler {
       }
       changed = true;
       try {
-        await this.notify({ ...reminder, triggeredAt: now.toISOString(), scheduledAt: scheduled.toISOString() });
+        await this.notify({ ...reminder, triggeredAt: now.toISOString(), scheduledAt: scheduled.toISOString(), notificationAt: notificationAt.toISOString() });
       } catch (error) {
         this.log(`提醒通知失败：${reminder.id}`, error);
       }

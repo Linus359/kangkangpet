@@ -1,0 +1,76 @@
+'use strict';
+
+const assert = require('node:assert/strict');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const test = require('node:test');
+const { NotesStore, normalizePayload } = require('../src/main/notes-store');
+const { normalizePwaConfig, openPwa } = require('../src/main/pwa-launcher');
+
+test('notes store skips malformed notes and persists atomically', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'kangkang-notes-'));
+  const filePath = path.join(directory, 'notes.json');
+  const store = new NotesStore(filePath);
+  const saved = store.save({ notes: [{ id: 'first', title: '标题', content: '第一行\n第二行', x: 20, y: 30 }, null, { id: 'first', title: '重复' }] });
+  assert.equal(saved.version, 2);
+  assert.equal(saved.notes.length, 1);
+  assert.equal(store.load().notes[0].content, '第一行\n第二行');
+  fs.rmSync(directory, { recursive: true, force: true });
+});
+
+test('notes payload tolerates missing fields and invalid entries', () => {
+  const payload = normalizePayload({ notes: [{ title: 3 }, 'bad', { id: 'ok', width: 10, height: 9999 }] });
+  assert.equal(payload.notes.length, 2);
+  assert.equal(payload.notes[1].width, 240);
+  assert.equal(payload.notes[1].height, 900);
+});
+
+test('task notes preserve subtasks and reset daily task completion on a new date', () => {
+  const first = normalizePayload({ notes: [{
+    mode: 'tasks', tasks: [{ title: '晨间整理', priority: 'high', repeat: 'daily', completed: true, lastResetDate: '2026-01-01', subtasks: [{ title: '列计划', completed: true }] }]
+  }] });
+  const task = first.notes[0].tasks[0];
+  assert.equal(first.version, 2);
+  assert.equal(task.priority, 'high');
+  assert.equal(task.repeat, 'daily');
+  assert.equal(task.subtasks.length, 1);
+  // normalizeNote accepts an explicit clock so date rollover logic remains deterministic.
+  const { normalizeNote } = require('../src/main/notes-store');
+  const reset = normalizeNote({ ...first.notes[0], tasks: [{ ...task, lastResetDate: '2026-01-01', completed: true, subtasks: [{ ...task.subtasks[0], completed: true }] }] }, '2026-01-02T08:00:00.000Z');
+  assert.equal(reset.tasks[0].completed, false);
+  assert.equal(reset.tasks[0].subtasks[0].completed, false);
+});
+
+test('PWA configuration accepts only structured local commands', () => {
+  const config = normalizePwaConfig({ url: 'https://example.test/app', launchCommand: { file: 'C:\\Apps\\Pwa.exe', args: ['--app'] }, processNames: ['Pwa.exe'], windowTitleKeywords: ['Target'] });
+  assert.deepEqual(config.launchCommand, { file: 'C:\\Apps\\Pwa.exe', args: ['--app'] });
+  assert.deepEqual(config.processNames, ['pwa']);
+  assert.deepEqual(normalizePwaConfig({ launchCommand: { file: 'C:\\Apps\\Pwa.exe', args: [] } }).launchCommand, { file: 'C:\\Apps\\Pwa.exe', args: [] });
+  assert.equal(normalizePwaConfig({ launchCommand: 'not allowed' }).launchCommand, null);
+});
+
+test('PWA flow reuses a matching window before attempting a launch', async () => {
+  let launches = 0;
+  let fallbacks = 0;
+  const result = await openPwa({ url: 'https://example.test', windowTitleKeywords: ['Target'] }, {
+    findWindow: async () => ({ Id: 42, MainWindowTitle: 'Target' }),
+    activateWindow: async () => true,
+    launch: () => { launches += 1; return true; },
+    openExternal: async () => { fallbacks += 1; }
+  });
+  assert.equal(result.reused, true);
+  assert.equal(launches, 0);
+  assert.equal(fallbacks, 0);
+});
+
+test('PWA flow falls back to the system browser after a failed configured launch', async () => {
+  let fallbackUrl = null;
+  const result = await openPwa({ url: 'https://example.test', launchCommand: { file: 'missing.exe', args: [] }, windowTitleKeywords: ['Target'] }, {
+    findWindow: async () => null,
+    launch: () => false,
+    openExternal: async (url) => { fallbackUrl = url; }
+  });
+  assert.equal(result.fallback, true);
+  assert.equal(fallbackUrl, 'https://example.test/');
+});

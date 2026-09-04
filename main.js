@@ -3,12 +3,14 @@
 const { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, Notification, powerMonitor, screen, shell, Tray } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const crypto = require('crypto');
-const { spawn } = require('child_process');
 const fs = require('fs');
 const https = require('https');
 const path = require('path');
 const { pathToFileURL } = require('url');
 const { ConfigStore } = require('./src/main/config-store');
+const { NOTE_VERSION, NotesStore, normalizeNote } = require('./src/main/notes-store');
+const { DEFAULT_PWA_CONFIG, normalizePwaConfig, openPwa } = require('./src/main/pwa-launcher');
+const { DEFAULT_TIME_ZONES, normalizeAnniversaries, normalizeCalendarViewMode, normalizeTimeZones } = require('./src/main/productivity-tools');
 const { Logger } = require('./src/main/logger');
 const { migrateLegacyPayload } = require('./src/main/migration');
 const { parseReminderBackup, parseReminderCsv, parseReminderText, parseReminderXlsx, serializeReminderBackup } = require('./src/main/reminder-backup');
@@ -19,7 +21,6 @@ const { DEFAULT_PET_SIZE, MAX_PET_SIZE, MIN_PET_SIZE, chooseDefaultAsset, clampP
 const APP_NAME = '康康熊桌宠';
 const APP_ID = 'com.forcome.kangkangpet';
 const RELEASE_NOTES_URL = 'https://api.github.com/repos/Linus359/kangkangpet/releases?per_page=100';
-const FORCOME_AI_NAME_PATTERN = /forcome\s*ai|forcome/i;
 const ASSET_DIR_NAME = 'cat';
 const ALLOWED_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.webm', '.mp4', '.mov', '.gif']);
 const REMINDER_MEDIA_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp3', '.wav', '.m4a', '.aac', '.ogg', '.flac', '.webm', '.mp4', '.mov']);
@@ -57,8 +58,8 @@ const defaultActionMessages = {
 };
 
 const defaultConfig = {
-  configVersion: 4,
-  reminderFeatureVersion: 3,
+  configVersion: 5,
+  reminderFeatureVersion: 4,
   size: DEFAULT_PET_SIZE,
   autoLaunch: false,
   position: null,
@@ -70,13 +71,20 @@ const defaultConfig = {
   idleMessages: ['康康熊正在按自己的节奏陪伴你。', '今天也要稳稳推进。', '如果累了，就休息两分钟。'],
   actionMessages: defaultActionMessages,
   reminders: [],
-  reminderDrafts: []
+  reminderDrafts: [],
+  pwa: DEFAULT_PWA_CONFIG,
+  tapFeedbackEnabled: false,
+  timeZones: DEFAULT_TIME_ZONES,
+  anniversaries: [],
+  calendarViewMode: 'month'
 };
 
 let config;
 let configPath;
 let mediaDir;
 let configStore;
+let notesStore;
+let notes = [];
 let logger;
 let scheduler;
 let petWindow;
@@ -84,6 +92,12 @@ let panelWindow;
 let quickReminderWindow;
 let tray;
 let saveTimer;
+let notesSaveTimer;
+let pwaOpenPromise = null;
+const noteWindows = new Map();
+const noteWindowIds = new Map();
+const pendingNoteBounds = new Map();
+const deletingNoteIds = new Set();
 let isQuitting = false;
 let pendingPetLayout = null;
 let petLayoutScheduled = false;
@@ -309,10 +323,14 @@ function normalizeReminderDrafts(items) {
 function normalizeConfig(raw) {
   const next = { ...defaultConfig, ...(raw && typeof raw === 'object' ? raw : {}) };
   const legacyDefaultSize = Number(next.configVersion || 0) < 3 && Number(next.size) === 260;
-  next.configVersion = 4;
-  next.reminderFeatureVersion = 3;
+  next.configVersion = 5;
+  next.reminderFeatureVersion = 4;
   next.size = normalizePetSize(legacyDefaultSize ? DEFAULT_PET_SIZE : next.size);
   next.autoLaunch = next.autoLaunch === true;
+  next.tapFeedbackEnabled = next.tapFeedbackEnabled === true;
+  next.timeZones = normalizeTimeZones(next.timeZones);
+  next.anniversaries = normalizeAnniversaries(next.anniversaries);
+  next.calendarViewMode = normalizeCalendarViewMode(next.calendarViewMode);
   next.interactionButtons = normalizeButtons(next.interactionButtons);
   const buttonIds = new Set(next.interactionButtons.map((button) => button.id));
   next.assets = (Array.isArray(next.assets) ? next.assets : []).map((asset) => normalizeAsset(asset, buttonIds));
@@ -322,6 +340,7 @@ function normalizeConfig(raw) {
   for (const [key, value] of Object.entries(next.actionMessages)) next.actionMessages[key] = asList(value, defaultActionMessages[key] || defaultConfig.idleMessages);
   next.reminders = normalizeReminders(next.reminders);
   next.reminderDrafts = normalizeReminderDrafts(next.reminderDrafts);
+  next.pwa = normalizePwaConfig(next.pwa);
   next.panelBounds = normalizeBounds(next.panelBounds);
   next.position = next.position && Number.isFinite(next.position.x) && Number.isFinite(next.position.y)
     ? { x: Math.round(next.position.x), y: Math.round(next.position.y) }
@@ -340,6 +359,7 @@ function ensureStorage() {
   fs.mkdirSync(mediaDir, { recursive: true });
   logger = new Logger(path.join(userData, 'logs'));
   configStore = new ConfigStore(configPath, { log: writeLog, normalize: normalizeConfig });
+  notesStore = new NotesStore(path.join(userData, 'notes.json'), { log: writeLog });
 }
 
 function bundledAssetsDir() {
@@ -448,6 +468,7 @@ function tryMigrateLegacyReminders() {
 function loadConfig() {
   ensureStorage();
   config = configStore.load(defaultConfig);
+  notes = notesStore.load().notes.map(normalizeNotePosition).filter(Boolean);
   tryMigrateLegacyReminders();
   seedBundledAssetsIfNeeded();
   migrateBundledAssetsToProcessed();
@@ -472,6 +493,7 @@ function saveConfigSoon() {
 function publicConfig() {
   return {
     ...config,
+    pwa: { ...config.pwa, launchCommand: null },
     assets: config.assets.map((asset) => ({ ...asset, fileUrl: asset.path && fs.existsSync(asset.path) ? pathToFileURL(asset.path).toString() : null })),
     reminders: config.reminders.map((reminder) => ({
       ...reminder,
@@ -657,6 +679,196 @@ function createQuickReminderWindow() {
   return quickReminderWindow;
 }
 
+function normalizeNotePosition(note) {
+  const normalized = normalizeNote(note);
+  if (!normalized) return null;
+  const display = screen.getDisplayNearestPoint({ x: normalized.x ?? 0, y: normalized.y ?? 0 }) || screen.getPrimaryDisplay();
+  const area = display.workArea;
+  const fallbackX = area.x + Math.min(72 + (notes.length % 6) * 28, Math.max(0, area.width - normalized.width));
+  const fallbackY = area.y + Math.min(72 + (notes.length % 6) * 28, Math.max(0, area.height - normalized.height));
+  return {
+    ...normalized,
+    x: Math.max(area.x, Math.min(Number.isFinite(normalized.x) ? normalized.x : fallbackX, area.x + area.width - normalized.width)),
+    y: Math.max(area.y, Math.min(Number.isFinite(normalized.y) ? normalized.y : fallbackY, area.y + area.height - normalized.height))
+  };
+}
+
+function noteById(noteId) {
+  return notes.find((note) => note.id === String(noteId)) || null;
+}
+
+function commitNotes(nextNotes) {
+  const payload = { version: NOTE_VERSION, notes: nextNotes };
+  const saved = notesStore.save(payload);
+  notes = saved.notes;
+  return notes;
+}
+
+function sendNoteError(noteId, message) {
+  const win = noteWindows.get(noteId);
+  if (win && !win.isDestroyed()) win.webContents.send('notes:error', message);
+}
+
+function sendNoteChanged(note) {
+  const win = noteWindows.get(note.id);
+  if (win && !win.isDestroyed()) win.webContents.send('notes:changed', note);
+}
+
+function updateNote(noteId, patch) {
+  const original = noteById(noteId);
+  if (!original) return { ok: false, error: '便利贴不存在。' };
+  const allowed = {};
+  if (typeof patch?.title === 'string') allowed.title = patch.title;
+  if (typeof patch?.content === 'string') allowed.content = patch.content;
+  if (patch?.mode === 'note' || patch?.mode === 'tasks') allowed.mode = patch.mode;
+  if (Array.isArray(patch?.tasks)) allowed.tasks = patch.tasks;
+  if (typeof patch?.alwaysOnTop === 'boolean') allowed.alwaysOnTop = patch.alwaysOnTop;
+  if (typeof patch?.visible === 'boolean') allowed.visible = patch.visible;
+  const replacement = normalizeNote({ ...original, ...allowed, id: original.id, createdAt: original.createdAt, updatedAt: new Date().toISOString() });
+  try {
+    commitNotes(notes.map((note) => note.id === original.id ? replacement : note));
+  } catch (error) {
+    writeLog('保存便利贴失败。', error);
+    sendNoteError(noteId, '便利贴保存失败，原内容未更改。');
+    return { ok: false, error: '便利贴保存失败，请重试。' };
+  }
+  const saved = noteById(noteId);
+  const win = noteWindows.get(noteId);
+  if (win && !win.isDestroyed()) win.setAlwaysOnTop(saved.alwaysOnTop);
+  sendNoteChanged(saved);
+  return { ok: true, note: saved };
+}
+
+function flushPendingNoteBounds() {
+  clearTimeout(notesSaveTimer);
+  notesSaveTimer = null;
+  if (!pendingNoteBounds.size) return true;
+  const pending = new Map(pendingNoteBounds);
+  pendingNoteBounds.clear();
+  const nextNotes = notes.map((note) => {
+    const bounds = pending.get(note.id);
+    return bounds ? normalizeNote({ ...note, ...bounds, updatedAt: new Date().toISOString() }) : note;
+  });
+  try {
+    commitNotes(nextNotes);
+    return true;
+  } catch (error) {
+    writeLog('保存便利贴位置失败。', error);
+    for (const noteId of pending.keys()) sendNoteError(noteId, '便利贴位置保存失败。');
+    return false;
+  }
+}
+
+function saveNoteBoundsSoon(noteId, bounds) {
+  const note = noteById(noteId);
+  if (!note) return;
+  pendingNoteBounds.set(noteId, {
+    x: Math.round(bounds.x), y: Math.round(bounds.y), width: Math.round(bounds.width), height: Math.round(bounds.height)
+  });
+  clearTimeout(notesSaveTimer);
+  notesSaveTimer = setTimeout(flushPendingNoteBounds, 350);
+}
+
+function createNoteWindow(noteId, { focus = false } = {}) {
+  const note = noteById(noteId);
+  if (!note) return null;
+  const existing = noteWindows.get(note.id);
+  if (existing && !existing.isDestroyed()) {
+    if (note.visible) existing.show();
+    if (focus) existing.focus();
+    return existing;
+  }
+  const win = new BrowserWindow({
+    x: note.x,
+    y: note.y,
+    width: note.width,
+    height: note.height,
+    minWidth: 240,
+    minHeight: 180,
+    frame: false,
+    transparent: false,
+    resizable: true,
+    alwaysOnTop: note.alwaysOnTop,
+    title: note.title,
+    backgroundColor: '#fff4a8',
+    webPreferences: { preload: path.join(__dirname, 'preload', 'note-preload.js'), contextIsolation: true, nodeIntegration: false }
+  });
+  win.setMenuBarVisibility(false);
+  noteWindows.set(note.id, win);
+  noteWindowIds.set(win.webContents.id, note.id);
+  win.loadFile('note.html');
+  win.once('ready-to-show', () => { if (noteById(note.id)?.visible) { win.show(); if (focus) win.focus(); } });
+  win.on('move', () => { if (!win.isDestroyed()) saveNoteBoundsSoon(note.id, win.getBounds()); });
+  win.on('resize', () => { if (!win.isDestroyed()) saveNoteBoundsSoon(note.id, win.getBounds()); });
+  win.on('close', (event) => {
+    if (isQuitting || deletingNoteIds.has(note.id)) return;
+    event.preventDefault();
+    hideNote(note.id);
+  });
+  win.on('closed', () => { noteWindows.delete(note.id); noteWindowIds.delete(win.webContents.id); });
+  win.webContents.on('render-process-gone', (_event, details) => writeLog(`便利贴渲染进程异常：${details.reason}`));
+  return win;
+}
+
+function createNote() {
+  const candidate = normalizeNote({ id: crypto.randomUUID(), title: '未命名便利贴', content: '', visible: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+  const note = normalizeNotePosition(candidate);
+  try {
+    commitNotes([...notes, note]);
+  } catch (error) {
+    writeLog('创建便利贴失败。', error);
+    return { ok: false, error: '无法创建便利贴，请检查本地存储。' };
+  }
+  createNoteWindow(note.id, { focus: true });
+  return { ok: true, note: noteById(note.id) };
+}
+
+function hideNote(noteId) {
+  const result = updateNote(noteId, { visible: false });
+  if (!result.ok) return result;
+  const win = noteWindows.get(String(noteId));
+  if (win && !win.isDestroyed()) win.hide();
+  flushPendingNoteBounds();
+  return result;
+}
+
+function showAllNotes() {
+  const hiddenIds = notes.filter((note) => !note.visible).map((note) => note.id);
+  if (hiddenIds.length) {
+    try { commitNotes(notes.map((note) => hiddenIds.includes(note.id) ? normalizeNote({ ...note, visible: true, updatedAt: new Date().toISOString() }) : note)); }
+    catch (error) { writeLog('显示便利贴失败。', error); return { ok: false, error: '便利贴状态保存失败。' }; }
+  }
+  notes.filter((note) => note.visible).forEach((note) => createNoteWindow(note.id));
+  return { ok: true };
+}
+
+function hideAllNotes() {
+  try { commitNotes(notes.map((note) => normalizeNote({ ...note, visible: false, updatedAt: new Date().toISOString() }))); }
+  catch (error) { writeLog('隐藏便利贴失败。', error); return { ok: false, error: '便利贴状态保存失败。' }; }
+  for (const win of noteWindows.values()) if (!win.isDestroyed()) win.hide();
+  flushPendingNoteBounds();
+  return { ok: true };
+}
+
+function deleteNote(noteId) {
+  const id = String(noteId);
+  if (!noteById(id)) return { ok: true };
+  try { commitNotes(notes.filter((note) => note.id !== id)); }
+  catch (error) { writeLog('删除便利贴失败。', error); return { ok: false, error: '删除便利贴失败，请重试。' }; }
+  pendingNoteBounds.delete(id);
+  const win = noteWindows.get(id);
+  if (win && !win.isDestroyed()) {
+    deletingNoteIds.add(id);
+    win.destroy();
+    deletingNoteIds.delete(id);
+  }
+  return { ok: true };
+}
+
+function currentNoteId(event) {
+  return noteWindowIds.get(event.sender.id) || null;
+}
+
 function appIconPath() {
   const ico = path.join(__dirname, 'build', 'face.ico');
   const png = path.join(__dirname, 'build', 'face.png');
@@ -674,6 +886,7 @@ function hidePet() {
 
 function quitApp() {
   isQuitting = true;
+  flushPendingNoteBounds();
   app.quit();
 }
 
@@ -681,6 +894,9 @@ function trayMenuTemplate() {
   const petVisible = Boolean(petWindow && !petWindow.isDestroyed() && petWindow.isVisible());
   return [
     { label: petVisible ? '隐藏康康熊' : '显示康康熊', click: petVisible ? hidePet : showPet },
+    { label: '新建便利贴', click: createNote },
+    { label: '显示全部便利贴', click: showAllNotes },
+    { label: '隐藏全部便利贴', click: hideAllNotes },
     { label: '开机自动启动', type: 'checkbox', checked: config.autoLaunch, click: (item) => applyConfigPatch({ autoLaunch: item.checked }) },
     { type: 'separator' },
     { label: '退出', click: quitApp }
@@ -708,7 +924,7 @@ function focusedWindow() {
 
 function createChineseAppMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate([
-    { label: '文件', submenu: [{ label: '打开控制面板', accelerator: 'CommandOrControl+,', click: () => createPanelWindow() }, { label: '快速新建提醒', click: createQuickReminderWindow }, { type: 'separator' }, { label: '退出', accelerator: 'CommandOrControl+Q', click: quitApp }] },
+    { label: '文件', submenu: [{ label: '打开控制面板', accelerator: 'CommandOrControl+,', click: () => createPanelWindow() }, { label: '快速新建提醒', click: createQuickReminderWindow }, { label: '新建便利贴', click: createNote }, { type: 'separator' }, { label: '退出', accelerator: 'CommandOrControl+Q', click: quitApp }] },
     { label: '编辑', submenu: [{ label: '撤销', accelerator: 'CommandOrControl+Z', click: () => focusedWindow()?.webContents.undo() }, { label: '重做', accelerator: 'CommandOrControl+Y', click: () => focusedWindow()?.webContents.redo() }, { type: 'separator' }, { label: '剪切', accelerator: 'CommandOrControl+X', click: () => focusedWindow()?.webContents.cut() }, { label: '复制', accelerator: 'CommandOrControl+C', click: () => focusedWindow()?.webContents.copy() }, { label: '粘贴', accelerator: 'CommandOrControl+V', click: () => focusedWindow()?.webContents.paste() }, { label: '全选', accelerator: 'CommandOrControl+A', click: () => focusedWindow()?.webContents.selectAll() }] },
     { label: '窗口', submenu: [{ label: '最小化', accelerator: 'CommandOrControl+M', click: () => focusedWindow()?.minimize() }, { label: '关闭窗口', accelerator: 'CommandOrControl+W', click: () => focusedWindow()?.close() }] },
     { label: '帮助', submenu: [{ label: `关于${APP_NAME}`, click: () => dialog.showMessageBox(focusedWindow() || petWindow, { type: 'info', title: APP_NAME, message: APP_NAME, detail: '本地离线桌面宠物与提醒助手。', buttons: ['知道了'] }) }] }
@@ -748,6 +964,10 @@ function applyConfigPatch(patch) {
   const next = { ...config };
   if (Object.prototype.hasOwnProperty.call(input, 'size')) next.size = clamp(Number(input.size) || config.size, MIN_PET_SIZE, MAX_PET_SIZE);
   if (Object.prototype.hasOwnProperty.call(input, 'autoLaunch')) next.autoLaunch = input.autoLaunch === true;
+  if (Object.prototype.hasOwnProperty.call(input, 'tapFeedbackEnabled')) next.tapFeedbackEnabled = input.tapFeedbackEnabled === true;
+  if (Object.prototype.hasOwnProperty.call(input, 'timeZones')) next.timeZones = normalizeTimeZones(input.timeZones);
+  if (Object.prototype.hasOwnProperty.call(input, 'anniversaries')) next.anniversaries = normalizeAnniversaries(input.anniversaries);
+  if (Object.prototype.hasOwnProperty.call(input, 'calendarViewMode')) next.calendarViewMode = normalizeCalendarViewMode(input.calendarViewMode);
   if (Object.prototype.hasOwnProperty.call(input, 'responses')) next.responses = asList(input.responses, config.responses);
   if (Object.prototype.hasOwnProperty.call(input, 'idleMessages')) next.idleMessages = asList(input.idleMessages, config.idleMessages);
   if (Object.prototype.hasOwnProperty.call(input, 'interactionButtons')) next.interactionButtons = sanitizeRendererButtons(input.interactionButtons);
@@ -784,14 +1004,23 @@ function saveReminder(input) {
 }
 
 function deleteReminder(reminderId) {
-  const before = config.reminders.length;
-  config.reminders = config.reminders.filter((item) => item.id !== String(reminderId));
-  if (config.reminders.length !== before) {
-    config.reminders = sortReminders(config.reminders);
-    saveReminders('delete');
-    scheduler?.reschedule('delete');
+  const id = typeof reminderId === 'string' ? reminderId.trim() : '';
+  if (!id) return { ...publicConfig(), ok: false, error: '日程 ID 无效。' };
+  const previous = config.reminders;
+  const next = previous.filter((item) => item.id !== id);
+  if (next.length === previous.length) return { ...publicConfig(), ok: true, affected: 0 };
+  config.reminders = sortReminders(next);
+  try {
+    configStore.save(config);
+  } catch (error) {
+    config.reminders = previous;
+    writeLog('删除日程失败，已恢复原数据。', error);
+    return { ...publicConfig(), ok: false, error: '删除日程失败，原数据未更改。' };
   }
-  return publicConfig();
+  broadcastConfig();
+  scheduler?.reschedule('delete');
+  writeLog('提醒已保存：delete');
+  return { ...publicConfig(), ok: true, affected: 1 };
 }
 
 function bulkUpdateReminders(reminderIds, action) {
@@ -1010,92 +1239,15 @@ async function notifyReminder(reminder) {
   }
 }
 
-function startMenuRoots() {
-  const roots = [];
-  try { roots.push(path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs')); } catch (_) { /* app may not be ready in tests */ }
-  if (process.env.PROGRAMDATA) roots.push(path.join(process.env.PROGRAMDATA, 'Microsoft', 'Windows', 'Start Menu', 'Programs'));
-  return [...new Set(roots)];
-}
-
-function collectFiles(root, predicate, maxDepth = 4, depth = 0, result = []) {
-  if (!root || depth > maxDepth || !fs.existsSync(root)) return result;
-  let entries;
-  try { entries = fs.readdirSync(root, { withFileTypes: true }); } catch (_) { return result; }
-  for (const entry of entries) {
-    const fullPath = path.join(root, entry.name);
-    if (entry.isFile() && predicate(fullPath, entry.name)) result.push(fullPath);
-    else if (entry.isDirectory()) collectFiles(fullPath, predicate, maxDepth, depth + 1, result);
-  }
-  return result;
-}
-
-function browserAppCandidates() {
-  const candidates = [];
-  const chromeRoots = [
-    path.join(process.env.LOCALAPPDATA || '', 'Google', 'Chrome', 'User Data'),
-    path.join(process.env.APPDATA || '', 'Google', 'Chrome', 'User Data')
-  ];
-  const edgeRoots = [
-    path.join(process.env.LOCALAPPDATA || '', 'Microsoft', 'Edge', 'User Data'),
-    path.join(process.env.APPDATA || '', 'Microsoft', 'Edge', 'User Data')
-  ];
-  for (const root of [...chromeRoots, ...edgeRoots]) {
-    const appDirs = collectFiles(root, (_file, name) => FORCOME_AI_NAME_PATTERN.test(name) && /\.(ico|png|json)$/i.test(name), 5)
-      .map((file) => path.dirname(file))
-      .filter((dir) => /Web Applications[\\/]_crx_[^\\/]+$/i.test(dir));
-    for (const dir of appDirs) {
-      const match = dir.match(/[\\/]_crx_([^\\/]+)$/i);
-      if (match) candidates.push({ appId: match[1], profileDirectory: path.basename(path.dirname(path.dirname(dir))), browser: root.includes('Microsoft\\Edge') ? 'edge' : 'chrome' });
-    }
-  }
-  return candidates;
-}
-
-function browserExecutable(browser) {
-  const paths = browser === 'edge'
-    ? [path.join(process.env.PROGRAMFILES || '', 'Microsoft', 'Edge', 'Application', 'msedge.exe'), path.join(process.env.LOCALAPPDATA || '', 'Microsoft', 'Edge', 'Application', 'msedge.exe')]
-    : [path.join(process.env.PROGRAMFILES || '', 'Google', 'Chrome', 'Application', 'chrome.exe'), path.join(process.env['PROGRAMFILES(X86)'] || '', 'Google', 'Chrome', 'Application', 'chrome.exe'), path.join(process.env.LOCALAPPDATA || '', 'Google', 'Chrome', 'Application', 'chrome.exe')];
-  return paths.find((candidate) => candidate && fs.existsSync(candidate)) || null;
-}
-
-function launchDetached(executable, args) {
-  if (!executable || !fs.existsSync(executable)) return false;
-  try {
-    const child = spawn(executable, args, { detached: true, stdio: 'ignore', windowsHide: true });
-    child.unref();
-    return true;
-  } catch (error) {
-    writeLog(`启动 FORCOME AI 失败：${executable}`, error);
-    return false;
-  }
-}
-
-async function openInstalledPwa() {
-  // Launch the browser-managed PWA entry. Chrome/Edge own the window identity
-  // and will focus an existing installed app instead of creating a duplicate.
-  const shortcuts = startMenuRoots().flatMap((root) => collectFiles(root, (_file, name) => /^FORCOME AI(?: \(\d+\))?\.lnk$/i.test(name), 4));
-  for (const shortcut of shortcuts) {
-    if (/\.lnk$/i.test(shortcut)) {
-      try {
-        const shortcutText = fs.readFileSync(shortcut, 'utf8');
-        if (/--app=https:\/\/ai\.forcome\.com/i.test(shortcutText)) continue;
-      } catch (_) { /* binary PWA shortcuts are opened by the shell below */ }
-    }
-    const error = await shell.openPath(shortcut);
-    if (!error) return { opened: true, installed: true, reused: true, message: '已打开原有 FORCOME AI 窗口。' };
-    writeLog(`无法打开 FORCOME 快捷方式：${shortcut}`, new Error(error));
-  }
-  for (const candidate of browserAppCandidates()) {
-    const executable = browserExecutable(candidate.browser);
-    const proxy = candidate.browser === 'chrome'
-      ? path.join(path.dirname(executable || ''), 'chrome_proxy.exe')
-      : path.join(path.dirname(executable || ''), 'msedge_proxy.exe');
-    if (launchDetached(fs.existsSync(proxy) ? proxy : executable, [`--profile-directory=${candidate.profileDirectory || 'Default'}`, `--app-id=${candidate.appId}`])) {
-      return { opened: true, installed: true, message: '正在打开 FORCOME AI。' };
-    }
-  }
-
-  return { opened: false, installed: false, message: '未找到已安装的 FORCOME AI 浏览器应用，请先在 Chrome 或 Edge 中安装 PWA。' };
+function openConfiguredPwa() {
+  if (pwaOpenPromise) return pwaOpenPromise;
+  pwaOpenPromise = openPwa(config?.pwa, { openExternal: shell.openExternal, log: writeLog })
+    .catch((error) => {
+      writeLog('目标 PWA 启动流程异常。', error);
+      return { ok: false, message: '无法打开目标 PWA，请检查设置或默认浏览器。' };
+    })
+    .finally(() => { pwaOpenPromise = null; });
+  return pwaOpenPromise;
 }
 
 function setupIpc() {
@@ -1124,7 +1276,31 @@ function setupIpc() {
   ipcMain.handle('reminders:draft-promote', (_event, draftId, reminder) => promoteReminderDraft(draftId, reminder));
   ipcMain.handle('reminders:export', exportReminders);
   ipcMain.handle('reminders:template-save', (_event, csv) => saveReminderTemplate(csv));
-  ipcMain.handle('pet:open-pwa', openInstalledPwa);
+  ipcMain.handle('pet:open-pwa', () => openConfiguredPwa());
+  ipcMain.handle('notes:create', () => createNote());
+  ipcMain.handle('notes:show-all', () => showAllNotes());
+  ipcMain.handle('notes:hide-all', () => hideAllNotes());
+  ipcMain.handle('notes:get', (event) => {
+    const note = noteById(currentNoteId(event));
+    return note ? { ok: true, note } : { ok: false, error: '便利贴不存在。' };
+  });
+  ipcMain.handle('notes:update', (event, patch) => {
+    if (!patch || typeof patch !== 'object' || Array.isArray(patch)) return { ok: false, error: '便利贴内容无效。' };
+    const noteId = currentNoteId(event);
+    return noteId ? updateNote(noteId, patch) : { ok: false, error: '便利贴不存在。' };
+  });
+  ipcMain.handle('notes:hide', (event) => {
+    const noteId = currentNoteId(event);
+    return noteId ? hideNote(noteId) : { ok: false, error: '便利贴不存在。' };
+  });
+  ipcMain.handle('notes:delete', (event) => {
+    const noteId = currentNoteId(event);
+    return noteId ? deleteNote(noteId) : { ok: false, error: '便利贴不存在。' };
+  });
+  ipcMain.handle('notes:toggle-always-on-top', (event) => {
+    const note = noteById(currentNoteId(event));
+    return note ? updateNote(note.id, { alwaysOnTop: !note.alwaysOnTop }) : { ok: false, error: '便利贴不存在。' };
+  });
   ipcMain.on('pet:set-click-through', (_event, ignore) => setPetClickThrough(ignore));
   ipcMain.on('pet:update-layout', (_event, layout) => updatePetLayout(layout));
   ipcMain.on('pet:context-menu', showPetContextMenu);
@@ -1156,6 +1332,7 @@ if (!app.requestSingleInstanceLock()) {
     setupIpc();
     createPetWindow();
     createTray();
+    notes.filter((note) => note.visible).forEach((note) => createNoteWindow(note.id));
     if (openPanelOnLaunch) createPanelWindow();
     setupAutoUpdater();
     scheduler = new ReminderScheduler({ getReminders: () => config.reminders, saveReminders, notify: notifyReminder, log: writeLog });
@@ -1170,5 +1347,9 @@ process.on('uncaughtException', (error) => writeLog('未捕获异常。', error)
 process.on('unhandledRejection', (error) => writeLog('未处理的 Promise 拒绝。', error));
 
 app.on('activate', () => showPet());
-app.on('window-all-closed', () => { saveConfigNow(); });
-app.on('before-quit', () => { isQuitting = true; scheduler?.stop(); saveConfigNow(); });
+app.on('before-quit', () => {
+  isQuitting = true;
+  scheduler?.stop();
+  flushPendingNoteBounds();
+  saveConfigNow();
+});

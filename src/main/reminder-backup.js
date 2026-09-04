@@ -264,7 +264,7 @@ function xlsxCellText(cell) {
 function serializeReminderBackup(reminders, exportedAt = new Date().toISOString()) {
   return JSON.stringify({
     exportedAt,
-    reminderFeatureVersion: 3,
+    reminderFeatureVersion: 4,
     reminders: Array.isArray(reminders) ? reminders : []
   }, null, 2);
 }

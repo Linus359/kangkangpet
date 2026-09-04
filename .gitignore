@@ -1,5 +1,8 @@
 node_modules/
 dist/
+dist1.0/
+dist-optimized/
+dist-verify/
 graphify-out/
 certs/
 build/*.pfx

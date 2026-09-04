@@ -1,13 +1,14 @@
 {
   "name": "kangkangpet",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "康康熊桌宠：本地桌面宠物与提醒工具。",
   "main": "main.js",
   "scripts": {
     "prestart": "node scripts/process-pet-assets.js",
     "start": "electron .",
     "test": "node --test",
-    "check": "node --check main.js && node --check src/main/reminders.js && node --check src/main/reminder-scheduler.js && node --check src/main/config-store.js && node --check src/main/logger.js && node --check src/main/migration.js && node --check src/main/reminder-backup.js && python scripts/export-domain-reminders.py",
+    "check": "node --check main.js && node --check src/main/reminders.js && node --check src/main/reminder-scheduler.js && node --check src/main/config-store.js && node --check src/main/notes-store.js && node --check src/main/pwa-launcher.js && node --check src/main/productivity-tools.js && node --check src/main/logger.js && node --check src/main/migration.js && node --check src/main/reminder-backup.js",
+    "export:domain-reminders": "python scripts/export-domain-reminders.py",
     "smoke": "node scripts/smoke-check.js",
     "prepack": "node scripts/process-pet-assets.js",
     "pack": "electron-builder --dir",
@@ -50,18 +51,22 @@
       "pet.html",
       "panel.html",
       "quick-reminder.html",
+      "note.html",
       "preload/**/*",
       "src/main/**/*",
-      "scripts/smoke-check.js",
-      "scripts/process-pet-assets.js",
       "package.json",
-      "assets/**/*",
-      "build/face.*",
-      "README.md"
+      "assets/cat-processed/**/*",
+      "assets/head/**/*",
+      "build/face.ico",
+      "!**/*.map",
+      "!node_modules/exceljs/dist/**/*"
     ],
     "asar": true,
+    "compression": "maximum",
+    "electronLanguages": [
+      "zh-CN"
+    ],
     "asarUnpack": [
-      "assets/cat/**",
       "assets/cat-processed/**",
       "assets/head/**"
     ],
@@ -89,6 +94,7 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "康康熊桌宠",
+      "menuCategory": "康康熊桌宠",
       "uninstallDisplayName": "康康熊桌宠",
       "installerIcon": "build/face.ico",
       "uninstallerIcon": "build/face.ico",
