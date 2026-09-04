@@ -79,8 +79,9 @@ function runPowerShell(script, { env = process.env, timeoutMs = 3000 } = {}) {
 }
 
 async function findPwaWindow(config, runCommand = runPowerShell) {
-  if (process.platform !== 'win32' || !config.windowTitleKeywords.length) return null;
-  const script = "$ErrorActionPreference='Stop'; Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle } | Select-Object Id,ProcessName,MainWindowTitle,MainWindowHandle | ConvertTo-Json -Compress";
+  if (process.platform !== 'win32' || (!config.windowTitleKeywords.length && !config.processNames.length)) return null;
+  // Keep processes with an empty title: minimized or Chromium-hosted PWA windows can report it temporarily.
+  const script = "$ErrorActionPreference='Stop'; $OutputEncoding=[System.Text.Encoding]::UTF8; [Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Get-Process | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object Id,ProcessName,MainWindowTitle,MainWindowHandle | ConvertTo-Json -Compress";
   const result = await runCommand(script);
   if (!result?.ok || !result.output.trim()) return null;
   let windows;
@@ -89,9 +90,30 @@ async function findPwaWindow(config, runCommand = runPowerShell) {
   return candidates.find((candidate) => {
     const title = asText(candidate?.MainWindowTitle, 1000).toLowerCase();
     const processName = asText(candidate?.ProcessName, 120).replace(/\.exe$/i, '').toLowerCase();
-    return title && config.windowTitleKeywords.some((keyword) => title.includes(keyword))
-      && (!config.processNames.length || config.processNames.includes(processName));
+    const titleMatches = config.windowTitleKeywords.length > 0 && config.windowTitleKeywords.some((keyword) => title.includes(keyword));
+    const processMatches = config.processNames.length > 0 && config.processNames.includes(processName);
+    return (!config.windowTitleKeywords.length || titleMatches) && (!config.processNames.length || processMatches);
   }) || null;
+}
+
+async function findInstalledPwaShortcut(config, runCommand = runPowerShell) {
+  if (process.platform !== 'win32' || (!config.url && !config.windowTitleKeywords.length)) return null;
+  const script = "$ErrorActionPreference='Stop'; $OutputEncoding=[System.Text.Encoding]::UTF8; [Console]::OutputEncoding=[System.Text.Encoding]::UTF8; $roots = @([Environment]::GetFolderPath('StartMenu'), [Environment]::GetFolderPath('CommonStartMenu'), [Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('CommonDesktopDirectory')) | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -Unique; $wantedUrl = ([string]$env:KANGKANGPET_PWA_URL).ToLowerInvariant().TrimEnd('/'); $wantedHost = ''; try { if ($wantedUrl) { $wantedHost = ([Uri]$wantedUrl).Host.ToLowerInvariant() } } catch {}; $keywords = @(); try { $keywords = @($env:KANGKANGPET_PWA_KEYWORDS | ConvertFrom-Json) } catch {}; $shell = New-Object -ComObject WScript.Shell; $matches = foreach ($root in $roots) { Get-ChildItem -LiteralPath $root -Filter '*.lnk' -File -Recurse -ErrorAction SilentlyContinue | ForEach-Object { try { $shortcut = $shell.CreateShortcut($_.FullName); $text = (@($_.BaseName, $shortcut.Description, $shortcut.TargetPath, $shortcut.Arguments) -join ' ').ToLowerInvariant(); $urlMatch = $wantedUrl -and ($text.Contains($wantedUrl) -or ($wantedHost -and $text.Contains($wantedHost))); $keywordMatch = $false; foreach ($keyword in $keywords) { if ($keyword -and $text.Contains(([string]$keyword).ToLowerInvariant())) { $keywordMatch = $true; break } }; if ($urlMatch -or $keywordMatch) { [pscustomobject]@{ Path=$_.FullName } } } catch {} } }; $matches | Select-Object -First 1 | ConvertTo-Json -Compress";
+  const result = await runCommand(script, {
+    env: {
+      ...process.env,
+      KANGKANGPET_PWA_URL: config.url || '',
+      KANGKANGPET_PWA_KEYWORDS: JSON.stringify(config.windowTitleKeywords)
+    }
+  });
+  if (!result?.ok || !result.output.trim()) return null;
+  try {
+    const value = JSON.parse(result.output);
+    const shortcutPath = asText(value?.Path, 4000);
+    return shortcutPath.toLowerCase().endsWith('.lnk') ? { path: shortcutPath } : null;
+  } catch (_) {
+    return null;
+  }
 }
 
 async function activatePwaWindow(windowInfo, runCommand = runPowerShell) {
@@ -117,23 +139,43 @@ function wait(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-async function openPwa(configValue, { openExternal, log = () => {}, findWindow = findPwaWindow, activateWindow = activatePwaWindow, launch = launchConfiguredCommand, delay = wait } = {}) {
+async function findAndActivatePwa(config, { findWindow, activateWindow, delay, log }, attempts = 1) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const candidate = await findWindow(config).catch((error) => { log('查找目标 PWA 窗口失败。', error); return null; });
+    if (candidate && await activateWindow(candidate).catch((error) => { log('激活目标 PWA 窗口失败。', error); return false; })) return true;
+    if (attempt + 1 < attempts) await delay(350);
+  }
+  return false;
+}
+
+async function openInstalledPwaShortcut(shortcut, openPath) {
+  if (!shortcut?.path || typeof openPath !== 'function') return false;
+  try {
+    const error = await openPath(shortcut.path);
+    return !error;
+  } catch (_) {
+    return false;
+  }
+}
+
+async function openPwa(configValue, { openExternal, openPath, log = () => {}, findWindow = findPwaWindow, activateWindow = activatePwaWindow, findInstalledShortcut = findInstalledPwaShortcut, launch = launchConfiguredCommand, delay = wait } = {}) {
   const config = normalizePwaConfig(configValue);
   if (!config.enabled) return { ok: false, message: '目标 PWA 功能未启用。' };
-  const existing = await findWindow(config).catch((error) => { log('查找目标 PWA 窗口失败。', error); return null; });
-  if (existing) {
-    const activated = await activateWindow(existing).catch((error) => { log('激活目标 PWA 窗口失败。', error); return false; });
-    if (activated) return { ok: true, reused: true, message: '已唤起目标 PWA。' };
+  if (await findAndActivatePwa(config, { findWindow, activateWindow, delay, log })) return { ok: true, reused: true, message: '已唤起目标 PWA。' };
+
+  const shortcut = typeof openPath === 'function'
+    ? await findInstalledShortcut(config).catch((error) => { log('查找已安装目标 PWA 失败。', error); return null; })
+    : null;
+  if (shortcut && await openInstalledPwaShortcut(shortcut, openPath)) {
+    if (await findAndActivatePwa(config, { findWindow, activateWindow, delay, log }, 7)) return { ok: true, launched: true, installed: true, message: '已打开已安装的目标 PWA。' };
+    // The shell accepted the registered shortcut. Do not open a second browser window just because the app exposes no title yet.
+    return { ok: true, launched: true, installed: true, message: '已启动已安装的目标 PWA。' };
   }
 
   if (config.launchCommand) {
     const launched = launch(config.launchCommand);
     if (launched) {
-      await delay(700);
-      const started = await findWindow(config).catch((error) => { log('启动后查找目标 PWA 窗口失败。', error); return null; });
-      if (started && await activateWindow(started).catch((error) => { log('启动后激活目标 PWA 窗口失败。', error); return false; })) {
-        return { ok: true, launched: true, message: '已打开目标 PWA。' };
-      }
+      if (await findAndActivatePwa(config, { findWindow, activateWindow, delay, log }, 7)) return { ok: true, launched: true, message: '已打开目标 PWA。' };
     } else {
       log('配置的目标 PWA 启动命令无法执行。');
     }
@@ -150,4 +192,4 @@ async function openPwa(configValue, { openExternal, log = () => {}, findWindow =
   return { ok: false, message: '无法打开目标 PWA，请检查设置或默认浏览器。' };
 }
 
-module.exports = { DEFAULT_PWA_CONFIG, normalizePwaConfig, normalizeLaunchCommand, findPwaWindow, activatePwaWindow, launchConfiguredCommand, openPwa };
+module.exports = { DEFAULT_PWA_CONFIG, normalizePwaConfig, normalizeLaunchCommand, findPwaWindow, findInstalledPwaShortcut, activatePwaWindow, launchConfiguredCommand, openInstalledPwaShortcut, openPwa };

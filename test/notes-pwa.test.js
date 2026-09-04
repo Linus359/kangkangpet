@@ -74,3 +74,21 @@ test('PWA flow falls back to the system browser after a failed configured launch
   assert.equal(result.fallback, true);
   assert.equal(fallbackUrl, 'https://example.test/');
 });
+
+test('PWA flow opens an installed Start menu shortcut before browser fallback', async () => {
+  let findCalls = 0;
+  let openedPath = null;
+  let fallbackUrl = null;
+  const result = await openPwa({ url: 'https://example.test/app', windowTitleKeywords: ['Target'] }, {
+    findWindow: async () => { findCalls += 1; return findCalls >= 3 ? { Id: 42 } : null; },
+    activateWindow: async () => true,
+    findInstalledShortcut: async () => ({ path: 'C:\\Start Menu\\Target.lnk' }),
+    openPath: async (value) => { openedPath = value; return ''; },
+    delay: async () => {},
+    openExternal: async (url) => { fallbackUrl = url; }
+  });
+  assert.equal(result.installed, true);
+  assert.equal(openedPath, 'C:\\Start Menu\\Target.lnk');
+  assert.equal(fallbackUrl, null);
+  assert.ok(findCalls >= 3);
+});

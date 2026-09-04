@@ -56,9 +56,10 @@ test('opens the configured PWA through the main process with browser fallback', 
   assert.match(pwaSource, /shell|openExternal/);
   assert.match(pwaSource, /shell: false/);
   assert.match(pwaSource, /fallbackToBrowser/);
+  assert.match(pwaSource, /findInstalledPwaShortcut/);
+  assert.match(mainSource, /openPath: shell\.openPath/);
   assert.match(mainSource, /ipcMain\.handle\('pet:open-pwa'/);
   assert.match(mainSource, /openPwa\(config\?\.pwa/);
-  assert.doesNotMatch(mainSource, /startMenuRoots|browserAppCandidates|openInstalledPwa/);
   assert.doesNotMatch(pwaSource, /Chrome\.exe|Edge\.exe|Program Files/);
 });
 

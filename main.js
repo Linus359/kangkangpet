@@ -1241,7 +1241,7 @@ async function notifyReminder(reminder) {
 
 function openConfiguredPwa() {
   if (pwaOpenPromise) return pwaOpenPromise;
-  pwaOpenPromise = openPwa(config?.pwa, { openExternal: shell.openExternal, log: writeLog })
+  pwaOpenPromise = openPwa(config?.pwa, { openExternal: shell.openExternal, openPath: shell.openPath, log: writeLog })
     .catch((error) => {
       writeLog('目标 PWA 启动流程异常。', error);
       return { ok: false, message: '无法打开目标 PWA，请检查设置或默认浏览器。' };
