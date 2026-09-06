@@ -129,3 +129,25 @@ test('interaction controls fade in place with three primary icons and nested act
   assert.match(petHtml, /icon: '🍎'/);
   assert.match(petHtml, /icon: '💼'/);
 });
+
+test('low-resource mode reduces idle work and pauses media while the system is inactive', () => {
+  assert.match(petHtml, /config\?\.petLowResourceMode !== false \? 1 : 4/);
+  assert.match(petHtml, /randomBetween\(14000, 30000\)/);
+  assert.match(petHtml, /preferStill: !options\.interaction && \(config\?\.petLowResourceMode !== false \|\| isRestAction\(actionKey\)\)/);
+  assert.match(petHtml, /desktopPetApi\.onPerformanceSuspend/);
+  assert.match(petHtml, /if \(!petVisible \|\| performanceSuspended \|\| config\?\.doNotDisturbMode\) return;/);
+});
+
+test('do-not-disturb mode suppresses pet chatter, idle actions and interaction controls but preserves reminders', () => {
+  assert.match(petHtml, /if \(config\?\.doNotDisturbMode && !isReminder\) return;/);
+  assert.match(petHtml, /buttons\.hidden = config\?\.doNotDisturbMode === true;/);
+  assert.match(petHtml, /if \(config\?\.doNotDisturbMode\) return;/);
+  assert.match(petHtml, /showMessage\(text, window\.currentStrongReminder \? 0 : 9000, true\)/);
+  assert.doesNotMatch(petHtml, /playTapFeedback|tapFeedbackEnabled/);
+});
+
+test('double-click remains a functional FORCOME AI entry during do-not-disturb mode', () => {
+  const handler = petHtml.match(/stage\.addEventListener\('dblclick',[\s\S]*?\n    \}\);/)?.[0] || '';
+  assert.match(handler, /desktopPetApi\.openPwa\(\)/);
+  assert.doesNotMatch(handler, /doNotDisturbMode/);
+});

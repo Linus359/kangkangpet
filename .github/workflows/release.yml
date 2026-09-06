@@ -1,15 +1,16 @@
-name: Release
+name: Release source verification
 
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  publish:
+  verify:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,8 +21,9 @@ jobs:
           cache: npm
 
       - run: npm ci
+      - run: npm run check
+      - run: npm test
 
-      - name: Build and publish GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: npx electron-builder --win nsis --x64 --publish always
+      - name: Explain release packaging
+        shell: pwsh
+        run: Write-Host 'The bundled FORCOME CLI runtime is not stored in the public source repository. Release installers are built from the verified maintainer workspace and uploaded to GitHub Releases.'

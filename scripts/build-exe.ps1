@@ -62,8 +62,8 @@ if (-not $NoSign -and $CertificateFile -and $CertificatePassword -and (Test-Path
   Write-Host "Building without code signing. Pass -CertificateFile/-CertificatePassword or KANGKANGPET_CERTIFICATE_* to sign a release."
 }
 
-if (-not (Test-Path ".\build\face.ico")) {
-  throw "Missing build\face.ico. Please generate or provide an application icon first."
+if (-not (Test-Path ".\dist\cli\assets\forcome.ico")) {
+  throw "Missing dist\cli\assets\forcome.ico. Copy the FORCOME AI CLI payload into dist\cli first."
 }
 
 $assetFiles = @()

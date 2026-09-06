@@ -422,9 +422,9 @@
     let routineName = 'settle';
     let startupPlayed = false;
     let petVisible = true;
+    let performanceSuspended = false;
     window.currentStrongReminder = false;
     const preloadedVideos = new Map();
-    const MAX_PRELOADED_VIDEOS = 4;
     const hitCanvas = document.createElement('canvas');
     const hitContext = hitCanvas.getContext('2d', { willReadFrequently: true });
     const measureCanvas = document.createElement('canvas');
@@ -743,7 +743,7 @@
     function preloadVideoAsset(asset) {
       if (!asset || asset.type !== 'video' || preloadedVideos.has(asset.id)) return;
       const preload = document.createElement('video');
-      preload.preload = 'auto';
+      preload.preload = config?.petLowResourceMode !== false ? 'metadata' : 'auto';
       preload.muted = true;
       preload.playsInline = true;
       preload.src = asset.fileUrl;
@@ -767,7 +767,8 @@
         return (priority[a.actionKey] ?? 9) - (priority[b.actionKey] ?? 9);
       });
 
-      const videoIds = new Set(byPriority.filter((asset) => asset.type === 'video').slice(0, MAX_PRELOADED_VIDEOS).map((asset) => asset.id));
+      const maxPreloadedVideos = config?.petLowResourceMode !== false ? 1 : 4;
+      const videoIds = new Set(byPriority.filter((asset) => asset.type === 'video').slice(0, maxPreloadedVideos).map((asset) => asset.id));
       for (const [assetId, preload] of preloadedVideos) {
         if (!videoIds.has(assetId)) {
           preload.removeAttribute('src');
@@ -801,6 +802,7 @@
     }
 
     function showMessage(text, duration = 3200, isReminder = false) {
+      if (config?.doNotDisturbMode && !isReminder) return;
       if (reminderVisible && !isReminder) return;
       const transitionId = ++bubbleTransitionId;
       const wasVisible = bubble.classList.contains('show');
@@ -867,13 +869,13 @@
 
     function scheduleIdle(delay = null) {
       clearTimeout(idleTimer);
-      if (!petVisible) return;
-      const nextDelay = delay ?? randomBetween(2500, 8000);
+      if (!petVisible || performanceSuspended || config?.doNotDisturbMode) return;
+      const nextDelay = delay ?? (config?.petLowResourceMode !== false ? randomBetween(14000, 30000) : randomBetween(2500, 8000));
       idleTimer = setTimeout(runIdleAction, nextDelay);
     }
 
     function runIdleAction() {
-      if (!petVisible) return;
+      if (!petVisible || performanceSuspended || config?.doNotDisturbMode) return;
       if (!config?.assets?.some((asset) => asset.enabled !== false)) return;
       if (isInteractionActive()) {
         scheduleIdle(randomBetween(1200, 2200));
@@ -892,7 +894,7 @@
     }
 
     function playStartupAction() {
-      if (startupPlayed || !config?.assets?.some((asset) => asset.enabled !== false)) return false;
+      if (startupPlayed || config?.doNotDisturbMode || !config?.assets?.some((asset) => asset.enabled !== false)) return false;
       const weights = availableActionWeights(STARTUP_ACTION_WEIGHTS);
       if (!weights.length) return false;
 
@@ -920,7 +922,7 @@
       const asset = options.asset || pickAssetForActions([actionKey], {
         assetPool: options.assetPool,
         allowSame: !options.interaction && isRestAction(actionKey),
-        preferStill: !options.interaction && isRestAction(actionKey),
+        preferStill: !options.interaction && (config?.petLowResourceMode !== false || isRestAction(actionKey)),
         stayChance: actionKey === 'sleep' ? 0.86 : 0.74
       });
       if (!asset) {
@@ -952,6 +954,7 @@
     }
 
     function interact(source) {
+      if (config?.doNotDisturbMode) return;
       const button = typeof source === 'object' && source ? source : null;
       const buttonAssets = assetsForButton(button);
       const freshButtonAssets = buttonAssets.filter((asset) => asset.id !== displayedAssetId);
@@ -962,15 +965,6 @@
       const text = pick(responses, '喵。');
       idleRoutine = makeRoutine(['play', 'hunt', 'walk', 'sharpen', 'defensive'].includes(selectedAction) ? 'coolDown' : 'groomCycle');
       playAction(selectedAction, { asset: selectedAsset, message: text, animate: true, interaction: true });
-    }
-
-    function playTapFeedback() {
-      if (!config?.tapFeedbackEnabled) return;
-      petMotion.classList.remove('wiggle');
-      void petMotion.offsetWidth;
-      petMotion.classList.add('wiggle');
-      setTimeout(() => petMotion.classList.remove('wiggle'), 620);
-      showMessage('康康熊收到轻拍，晃了晃又恢复精神啦。');
     }
 
     function interactionButtonPresentation(item) {
@@ -1302,7 +1296,7 @@
       if (active?.type === 'video') {
         preloadVideoAsset(active);
         if (video.src !== active.fileUrl) video.src = active.fileUrl;
-        video.preload = 'auto';
+        video.preload = config?.petLowResourceMode !== false ? 'metadata' : 'auto';
         video.loop = true;
         video.classList.remove('hidden');
         if (forceReplay || displayedAssetId !== active.id) {
@@ -1310,7 +1304,7 @@
             video.currentTime = 0;
           } catch {}
         }
-        if (petVisible) video.play().catch(() => {});
+        if (petVisible && !performanceSuspended && !config?.doNotDisturbMode) video.play().catch(() => {});
         else video.pause();
       } else if (active?.type === 'image') {
         if (image.src !== active.fileUrl) image.src = active.fileUrl;
@@ -1324,7 +1318,7 @@
 
       updateBubbleAnchor();
 
-      const nextMenuSignature = JSON.stringify((config.interactionButtons || []).map((item) => [item.id, item.label, item.actionKeys, item.responses]));
+      const nextMenuSignature = JSON.stringify([config.doNotDisturbMode === true, (config.interactionButtons || []).map((item) => [item.id, item.label, item.actionKeys, item.responses])]);
       if (nextMenuSignature !== interactionMenuSignature) {
         renderInteractionMenus();
         interactionMenuSignature = nextMenuSignature;
@@ -1401,6 +1395,8 @@
 
     function renderInteractionMenus() {
       buttons.innerHTML = '';
+      buttons.hidden = config?.doNotDisturbMode === true;
+      if (buttons.hidden) return;
       const interactionButtons = config.interactionButtons || [];
 
       const playMenu = createMenuGroup('🧸', '陪康康玩');
@@ -1408,7 +1404,6 @@
         const presentation = interactionButtonPresentation(interaction);
         playMenu.menu.appendChild(createMenuItem(presentation.icon, presentation.label, () => interact(interaction)));
       }
-      if (config.tapFeedbackEnabled) playMenu.menu.appendChild(createMenuItem('🫳', '轻拍康康熊', () => playTapFeedback()));
       buttons.appendChild(playMenu.group);
 
       const workMenu = createMenuGroup('💼', '专注工作');
@@ -1546,6 +1541,16 @@
 
     desktopPetApi.onConfigChanged((nextConfig) => {
       render(nextConfig);
+      if (nextConfig.doNotDisturbMode) {
+        clearTimeout(idleTimer);
+        closeInteractionMenus();
+        video.pause();
+        if (!bubble.classList.contains('reminder')) {
+          bubble.classList.remove('show');
+          bubbleLayoutReserved = false;
+          updateWindowLayout(false, true);
+        }
+      }
       scheduleIdle();
     });
 
@@ -1556,13 +1561,24 @@
 
     desktopPetApi.onVisibilityChanged((visible) => {
       petVisible = visible;
-      if (!visible) {
+      if (!visible || performanceSuspended) {
         clearTimeout(idleTimer);
         video.pause();
         return;
       }
-      if (!video.classList.contains('hidden')) video.play().catch(() => {});
+      if (!config?.doNotDisturbMode && !video.classList.contains('hidden')) video.play().catch(() => {});
       scheduleIdle();
+    });
+
+    desktopPetApi.onPerformanceSuspend((suspended) => {
+      performanceSuspended = suspended;
+      if (suspended) {
+        clearTimeout(idleTimer);
+        video.pause();
+        return;
+      }
+      if (petVisible && !config?.doNotDisturbMode && !video.classList.contains('hidden')) video.play().catch(() => {});
+      if (petVisible) scheduleIdle();
     });
 
     desktopPetApi.getConfig().then((nextConfig) => {

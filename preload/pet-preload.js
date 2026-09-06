@@ -13,5 +13,6 @@ contextBridge.exposeInMainWorld('petApi', {
   openPwa: () => ipcRenderer.invoke('pet:open-pwa'),
   onConfigChanged: (callback) => ipcRenderer.on('config:changed', (_event, config) => callback(config)),
   onVisibilityChanged: (callback) => ipcRenderer.on('pet:visibility', (_event, visible) => callback(Boolean(visible))),
+  onPerformanceSuspend: (callback) => ipcRenderer.on('pet:performance-suspend', (_event, suspended) => callback(Boolean(suspended))),
   onReminder: (callback) => ipcRenderer.on('reminder:triggered', (_event, reminder) => callback(reminder))
 });

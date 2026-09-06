@@ -1,13 +1,13 @@
 {
   "name": "kangkangpet",
-  "version": "1.0.1",
-  "description": "康康熊桌宠：本地桌面宠物与提醒工具。",
+  "version": "1.0.6",
+  "description": "FORCOME AI CLI 桌面伴侣：单托盘、康康熊桌宠、本地日程提醒与便利贴。",
   "main": "main.js",
   "scripts": {
     "prestart": "node scripts/process-pet-assets.js",
     "start": "electron .",
     "test": "node --test",
-    "check": "node --check main.js && node --check src/main/reminders.js && node --check src/main/reminder-scheduler.js && node --check src/main/config-store.js && node --check src/main/notes-store.js && node --check src/main/pwa-launcher.js && node --check src/main/productivity-tools.js && node --check src/main/logger.js && node --check src/main/migration.js && node --check src/main/reminder-backup.js",
+    "check": "node --check main.js && node --check src/main/reminders.js && node --check src/main/reminder-scheduler.js && node --check src/main/config-store.js && node --check src/main/notes-store.js && node --check src/main/pwa-launcher.js && node --check src/main/forcome-cli.js && node --check src/main/holiday-service.js && node --check src/main/productivity-tools.js && node --check src/main/logger.js && node --check src/main/migration.js && node --check src/main/reminder-backup.js",
     "export:domain-reminders": "python scripts/export-domain-reminders.py",
     "smoke": "node scripts/smoke-check.js",
     "prepack": "node scripts/process-pet-assets.js",
@@ -57,7 +57,6 @@
       "package.json",
       "assets/cat-processed/**/*",
       "assets/head/**/*",
-      "build/face.ico",
       "!**/*.map",
       "!node_modules/exceljs/dist/**/*"
     ],
@@ -69,6 +68,28 @@
     "asarUnpack": [
       "assets/cat-processed/**",
       "assets/head/**"
+    ],
+    "extraResources": [
+      {
+        "from": "dist/cli/runtime",
+        "to": "forcome-cli/runtime"
+      },
+      {
+        "from": "dist/cli/cli",
+        "to": "forcome-cli/cli"
+      },
+      {
+        "from": "dist/cli/bin",
+        "to": "forcome-cli/bin"
+      },
+      {
+        "from": "dist/cli/ForcomeAiTray.exe",
+        "to": "forcome-cli/ForcomeAiTray.exe"
+      },
+      {
+        "from": "dist/cli/assets",
+        "to": "forcome-cli/assets"
+      }
     ],
     "publish": {
       "provider": "github",
@@ -84,7 +105,7 @@
           ]
         }
       ],
-      "icon": "build/face.ico",
+      "icon": "dist/cli/assets/forcome.ico",
       "artifactName": "kangkangpet-setup-${version}.${ext}"
     },
     "nsis": {
@@ -96,9 +117,9 @@
       "shortcutName": "康康熊桌宠",
       "menuCategory": "康康熊桌宠",
       "uninstallDisplayName": "康康熊桌宠",
-      "installerIcon": "build/face.ico",
-      "uninstallerIcon": "build/face.ico",
-      "installerHeaderIcon": "build/face.ico",
+      "installerIcon": "dist/cli/assets/forcome.ico",
+      "uninstallerIcon": "dist/cli/assets/forcome.ico",
+      "installerHeaderIcon": "dist/cli/assets/forcome.ico",
       "language": "2052",
       "runAfterFinish": true,
       "deleteAppDataOnUninstall": false,

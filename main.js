@@ -11,12 +11,18 @@ const { ConfigStore } = require('./src/main/config-store');
 const { NOTE_VERSION, NotesStore, normalizeNote } = require('./src/main/notes-store');
 const { DEFAULT_PWA_CONFIG, normalizePwaConfig, openPwa } = require('./src/main/pwa-launcher');
 const { DEFAULT_TIME_ZONES, normalizeAnniversaries, normalizeCalendarViewMode, normalizeTimeZones } = require('./src/main/productivity-tools');
+const { ChinaHolidayService } = require('./src/main/holiday-service');
 const { Logger } = require('./src/main/logger');
 const { migrateLegacyPayload } = require('./src/main/migration');
 const { parseReminderBackup, parseReminderCsv, parseReminderText, parseReminderXlsx, serializeReminderBackup } = require('./src/main/reminder-backup');
 const { ReminderScheduler } = require('./src/main/reminder-scheduler');
 const { applyReminderBulkAction, mergeImportedReminders, normalizeReminders, normalizeSource, sortReminders, validateReminder } = require('./src/main/reminders');
 const { DEFAULT_PET_SIZE, MAX_PET_SIZE, MIN_PET_SIZE, chooseDefaultAsset, clampPetPosition, defaultPetPosition, getPetBounds: calculatePetBounds, normalizePetSize } = require('./src/main/pet-layout');
+const { ForcomeCliManager, resolveForcomeCliPaths } = require('./src/main/forcome-cli');
+
+// The app does not render WebGPU content. Keeping Chromium on the D3D11/ANGLE path
+// lets packaged builds omit the optional D3D12 WebGPU and Vulkan fallback binaries.
+app.commandLine.appendSwitch('disable-features', 'WebGPU,Vulkan,DefaultANGLEVulkan,VulkanFromANGLE');
 
 const APP_NAME = '康康熊桌宠';
 const APP_ID = 'com.forcome.kangkangpet';
@@ -58,7 +64,7 @@ const defaultActionMessages = {
 };
 
 const defaultConfig = {
-  configVersion: 5,
+  configVersion: 8,
   reminderFeatureVersion: 4,
   size: DEFAULT_PET_SIZE,
   autoLaunch: false,
@@ -73,9 +79,12 @@ const defaultConfig = {
   reminders: [],
   reminderDrafts: [],
   pwa: DEFAULT_PWA_CONFIG,
-  tapFeedbackEnabled: false,
+  cliAutoReconnect: true,
+  petLowResourceMode: true,
+  doNotDisturbMode: false,
   timeZones: DEFAULT_TIME_ZONES,
   anniversaries: [],
+  chinaHolidayEnabled: true,
   calendarViewMode: 'month'
 };
 
@@ -87,23 +96,37 @@ let notesStore;
 let notes = [];
 let logger;
 let scheduler;
+let holidayService;
+let forcomeCli;
 let petWindow;
 let panelWindow;
 let quickReminderWindow;
 let tray;
 let saveTimer;
 let notesSaveTimer;
+let petWindowDestroyTimer = null;
 let pwaOpenPromise = null;
 const noteWindows = new Map();
 const noteWindowIds = new Map();
 const pendingNoteBounds = new Map();
 const deletingNoteIds = new Set();
 let isQuitting = false;
+let shutdownCleanupStarted = false;
+let shutdownCleanupComplete = false;
 let pendingPetLayout = null;
 let petLayoutScheduled = false;
 let updaterConfigured = false;
 let updaterCheckPromise = null;
 let updaterState = { status: 'idle', version: null, message: '尚未检查更新。' };
+let forcomeStatus = { available: false, authenticated: false, connectorRunning: false, externalConnectorRunning: false };
+let forcomeSupervisorTimer = null;
+let forcomeReconnectAttempt = 0;
+let forcomeRefreshPromise = null;
+let forcomeStatusWatchPath = null;
+let connectorManuallyPaused = false;
+const trayStatusIcons = new Map();
+const FORCOME_HEALTH_CHECK_MS = 2 * 60 * 1000;
+const FORCOME_RECONNECT_DELAYS_MS = [5000, 15000, 30000, 60000, 120000];
 
 function writeLog(message, error = null) {
   if (logger) logger.write(message, error);
@@ -323,13 +346,18 @@ function normalizeReminderDrafts(items) {
 function normalizeConfig(raw) {
   const next = { ...defaultConfig, ...(raw && typeof raw === 'object' ? raw : {}) };
   const legacyDefaultSize = Number(next.configVersion || 0) < 3 && Number(next.size) === 260;
-  next.configVersion = 5;
+  next.configVersion = 8;
   next.reminderFeatureVersion = 4;
   next.size = normalizePetSize(legacyDefaultSize ? DEFAULT_PET_SIZE : next.size);
   next.autoLaunch = next.autoLaunch === true;
-  next.tapFeedbackEnabled = next.tapFeedbackEnabled === true;
+  next.cliAutoReconnect = next.cliAutoReconnect !== false;
+  next.petLowResourceMode = next.petLowResourceMode !== false;
+  next.doNotDisturbMode = next.doNotDisturbMode === true;
+  delete next.tapFeedbackEnabled;
   next.timeZones = normalizeTimeZones(next.timeZones);
   next.anniversaries = normalizeAnniversaries(next.anniversaries);
+  next.chinaHolidayEnabled = next.chinaHolidayEnabled !== false;
+  delete next.holidaySettings;
   next.calendarViewMode = normalizeCalendarViewMode(next.calendarViewMode);
   next.interactionButtons = normalizeButtons(next.interactionButtons);
   const buttonIds = new Set(next.interactionButtons.map((button) => button.id));
@@ -360,6 +388,7 @@ function ensureStorage() {
   logger = new Logger(path.join(userData, 'logs'));
   configStore = new ConfigStore(configPath, { log: writeLog, normalize: normalizeConfig });
   notesStore = new NotesStore(path.join(userData, 'notes.json'), { log: writeLog });
+  holidayService = new ChinaHolidayService({ cachePath: path.join(userData, 'china-holiday-cache.json'), log: writeLog });
 }
 
 function bundledAssetsDir() {
@@ -607,7 +636,8 @@ function createPetWindow() {
     skipTaskbar: true,
     backgroundColor: '#00000000',
     title: APP_NAME,
-    webPreferences: { preload: path.join(__dirname, 'preload', 'pet-preload.js'), contextIsolation: true, nodeIntegration: false }
+    icon: appIconPath() || undefined,
+    webPreferences: { preload: path.join(__dirname, 'preload', 'pet-preload.js'), contextIsolation: true, nodeIntegration: false, backgroundThrottling: true, spellcheck: false }
   });
   config.position = position;
   petWindow.setAlwaysOnTop(true, 'screen-saver');
@@ -635,9 +665,10 @@ function createPanelWindow(tab = null) {
     minWidth: 760,
     minHeight: 560,
     title: `${APP_NAME}控制面板`,
+    icon: appIconPath() || undefined,
     backgroundColor: '#f6f4ef',
     autoHideMenuBar: true,
-    webPreferences: { preload: path.join(__dirname, 'preload', 'panel-preload.js'), contextIsolation: true, nodeIntegration: false }
+    webPreferences: { preload: path.join(__dirname, 'preload', 'panel-preload.js'), contextIsolation: true, nodeIntegration: false, backgroundThrottling: true, spellcheck: false }
   });
   panelWindow.loadFile('panel.html');
   panelWindow.showInactive();
@@ -668,10 +699,11 @@ function createQuickReminderWindow() {
     maximizable: false,
     minimizable: false,
     title: '快速新建提醒',
+    icon: appIconPath() || undefined,
     backgroundColor: '#f6f4ef',
     parent: panelWindow || undefined,
     modal: Boolean(panelWindow),
-    webPreferences: { preload: path.join(__dirname, 'preload', 'quick-reminder-preload.js'), contextIsolation: true, nodeIntegration: false }
+    webPreferences: { preload: path.join(__dirname, 'preload', 'quick-reminder-preload.js'), contextIsolation: true, nodeIntegration: false, backgroundThrottling: true, spellcheck: false }
   });
   quickReminderWindow.setMenuBarVisibility(false);
   quickReminderWindow.loadFile('quick-reminder.html');
@@ -790,8 +822,9 @@ function createNoteWindow(noteId, { focus = false } = {}) {
     resizable: true,
     alwaysOnTop: note.alwaysOnTop,
     title: note.title,
+    icon: appIconPath() || undefined,
     backgroundColor: '#fff4a8',
-    webPreferences: { preload: path.join(__dirname, 'preload', 'note-preload.js'), contextIsolation: true, nodeIntegration: false }
+    webPreferences: { preload: path.join(__dirname, 'preload', 'note-preload.js'), contextIsolation: true, nodeIntegration: false, backgroundThrottling: true, spellcheck: false }
   });
   win.setMenuBarVisibility(false);
   noteWindows.set(note.id, win);
@@ -870,18 +903,27 @@ function currentNoteId(event) {
 }
 
 function appIconPath() {
-  const ico = path.join(__dirname, 'build', 'face.ico');
-  const png = path.join(__dirname, 'build', 'face.png');
-  return fs.existsSync(ico) ? ico : fs.existsSync(png) ? png : null;
+  const paths = resolveForcomeCliPaths({ appRoot: __dirname, resourcesPath: process.resourcesPath, isPackaged: app.isPackaged });
+  return fs.existsSync(paths.icon) ? paths.icon : null;
 }
 
 function showPet() {
+  clearTimeout(petWindowDestroyTimer);
+  petWindowDestroyTimer = null;
   const win = createPetWindow();
   win.showInactive();
 }
 
 function hidePet() {
   if (petWindow && !petWindow.isDestroyed()) petWindow.hide();
+  clearTimeout(petWindowDestroyTimer);
+  if (config?.petLowResourceMode !== false) {
+    petWindowDestroyTimer = setTimeout(() => {
+      if (petWindow && !petWindow.isDestroyed() && !petWindow.isVisible()) petWindow.destroy();
+      petWindowDestroyTimer = null;
+    }, 30000);
+    petWindowDestroyTimer.unref?.();
+  }
 }
 
 function quitApp() {
@@ -890,31 +932,182 @@ function quitApp() {
   app.quit();
 }
 
+function forcomeStatusKey(status = forcomeStatus) {
+  if (!status.available || status.externalConnectorRunning) return 'error';
+  if (status.connectorConnected) return 'connected';
+  if (status.loginRunning) return 'login';
+  if (status.authenticated) return 'offline';
+  return 'signed-out';
+}
+
+function forcomeStatusLabel(status = forcomeStatus) {
+  const key = forcomeStatusKey(status);
+  if (key === 'connected') return '已连接';
+  if (key === 'login') return '正在登录';
+  if (key === 'offline') {
+    if (status.connectionStatus === 'connecting') return '正在连接';
+    if (status.connectionStatus === 'reconnecting') return '网络离线，自动重连中';
+    return '已登录，连接离线';
+  }
+  if (key === 'error') return status.externalConnectorRunning ? '检测到旧版连接器冲突' : 'CLI 不可用';
+  return '未登录';
+}
+
+function forcomeTrayIcon(status = forcomeStatus) {
+  const key = forcomeStatusKey(status);
+  if (trayStatusIcons.has(key)) return trayStatusIcons.get(key);
+  const paths = resolveForcomeCliPaths({ appRoot: __dirname, resourcesPath: process.resourcesPath, isPackaged: app.isPackaged });
+  if (!fs.existsSync(paths.logo)) return nativeImage.createFromPath(appIconPath() || '');
+  const color = { connected: '#22c55e', login: '#3b82f6', offline: '#f59e0b', error: '#ef4444', 'signed-out': '#94a3b8' }[key];
+  const logo = fs.readFileSync(paths.logo).toString('base64');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><image href="data:image/png;base64,${logo}" x="1" y="1" width="29" height="29"/><circle cx="25" cy="25" r="6" fill="white"/><circle cx="25" cy="25" r="4.5" fill="${color}"/></svg>`;
+  const icon = nativeImage.createFromDataURL(`data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`).resize({ width: 32, height: 32 });
+  trayStatusIcons.set(key, icon);
+  return icon;
+}
+
+function updateForcomeTrayStatus() {
+  if (!tray || tray.isDestroyed()) return;
+  const fallbackPath = appIconPath();
+  const fallback = fallbackPath ? nativeImage.createFromPath(fallbackPath) : nativeImage.createEmpty();
+  const statusIcon = forcomeTrayIcon();
+  tray.setImage(statusIcon && !statusIcon.isEmpty() ? statusIcon : fallback);
+  tray.setToolTip(`FORCOME AI：${forcomeStatusLabel()} · 康康熊桌宠`);
+}
+
+function broadcastForcomeStatus() {
+  updateForcomeTrayStatus();
+  if (panelWindow && !panelWindow.isDestroyed()) panelWindow.webContents.send('forcome-cli:status', forcomeStatus);
+}
+
+async function refreshForcomeStatus() {
+  if (!forcomeCli) return forcomeStatus;
+  if (forcomeRefreshPromise) return forcomeRefreshPromise;
+  forcomeRefreshPromise = forcomeCli.getStatus()
+    .then((status) => {
+      forcomeStatus = status;
+      if (status.connectorRunning) forcomeReconnectAttempt = 0;
+      broadcastForcomeStatus();
+      return status;
+    })
+    .catch((error) => {
+      writeLog('读取 FORCOME AI 状态失败。', error);
+      return forcomeStatus;
+    })
+    .finally(() => { forcomeRefreshPromise = null; });
+  return forcomeRefreshPromise;
+}
+
+function scheduleForcomeMaintenance(delay = FORCOME_HEALTH_CHECK_MS, reconnectAfterDelay = false) {
+  clearTimeout(forcomeSupervisorTimer);
+  if (isQuitting) return;
+  forcomeSupervisorTimer = setTimeout(() => maintainForcomeConnector({ immediate: reconnectAfterDelay }).catch((error) => writeLog('FORCOME AI 连接维护失败。', error)), delay);
+  forcomeSupervisorTimer.unref?.();
+}
+
+async function maintainForcomeConnector({ immediate = false } = {}) {
+  if (isQuitting || !forcomeCli) return forcomeStatus;
+  const status = await refreshForcomeStatus();
+  const shouldReconnect = config?.cliAutoReconnect !== false && !connectorManuallyPaused && status.available && status.authenticated && !status.connectorRunning && !status.externalConnectorRunning;
+  if (!shouldReconnect) {
+    scheduleForcomeMaintenance();
+    return status;
+  }
+  const delay = immediate ? 0 : FORCOME_RECONNECT_DELAYS_MS[Math.min(forcomeReconnectAttempt, FORCOME_RECONNECT_DELAYS_MS.length - 1)];
+  if (delay > 0) {
+    forcomeReconnectAttempt += 1;
+    scheduleForcomeMaintenance(delay, true);
+    return status;
+  }
+  const result = forcomeCli.startConnector();
+  if (!result.ok) {
+    writeLog('FORCOME AI 自动重连启动失败。', new Error(result.error || 'unknown error'));
+    forcomeReconnectAttempt += 1;
+    scheduleForcomeMaintenance(FORCOME_RECONNECT_DELAYS_MS[Math.min(forcomeReconnectAttempt, FORCOME_RECONNECT_DELAYS_MS.length - 1)], true);
+    return status;
+  }
+  scheduleForcomeMaintenance(5000);
+  return status;
+}
+
+async function startForcomeLogin() {
+  const result = forcomeCli?.startLogin() || { ok: false, error: 'CLI 尚未初始化。' };
+  if (!result.ok) writeLog('FORCOME AI 登录启动失败。', new Error(result.error));
+  await refreshForcomeStatus();
+  return { ...forcomeStatus, action: result };
+}
+
+async function reconnectForcomeConnector() {
+  connectorManuallyPaused = false;
+  if (forcomeStatus.externalConnectorRunning) return { ...forcomeStatus, ok: false, error: '检测到旧版连接器，请先退出旧版。' };
+  await forcomeCli.stopConnector();
+  forcomeReconnectAttempt = 0;
+  const result = forcomeCli.startConnector();
+  scheduleForcomeMaintenance(4000);
+  return { ...await refreshForcomeStatus(), ok: result.ok, error: result.error };
+}
+
+async function pauseForcomeConnector() {
+  connectorManuallyPaused = true;
+  clearTimeout(forcomeSupervisorTimer);
+  const result = await forcomeCli.stopConnector();
+  scheduleForcomeMaintenance();
+  return { ...result, ...await refreshForcomeStatus() };
+}
+
 function trayMenuTemplate() {
   const petVisible = Boolean(petWindow && !petWindow.isDestroyed() && petWindow.isVisible());
   return [
-    { label: petVisible ? '隐藏康康熊' : '显示康康熊', click: petVisible ? hidePet : showPet },
+    { label: `FORCOME AI：${forcomeStatusLabel()}`, enabled: false },
+    { label: '打开 FORCOME AI', click: () => openConfiguredPwa() },
+    { label: forcomeStatus.authenticated ? '重新登录 / 切换账号' : '登录 FORCOME AI', enabled: forcomeStatus.available && !forcomeStatus.loginRunning, click: () => startForcomeLogin() },
+    { label: forcomeStatus.connectorRunning ? '重新连接 CLI' : '连接 CLI', enabled: forcomeStatus.available && forcomeStatus.authenticated && !forcomeStatus.externalConnectorRunning, click: () => reconnectForcomeConnector() },
+    { label: '停止 CLI 连接器', enabled: forcomeStatus.connectorRunning, click: () => pauseForcomeConnector() },
+    { label: '离线自动重连', type: 'checkbox', checked: config.cliAutoReconnect !== false, click: (item) => { connectorManuallyPaused = false; applyConfigPatch({ cliAutoReconnect: item.checked }); if (item.checked) maintainForcomeConnector({ immediate: true }).catch((error) => writeLog('手动启用 FORCOME AI 自动重连失败。', error)); } },
+    { type: 'separator' },
+    { label: '康康熊桌宠与提醒', submenu: [
+      { label: petVisible ? '隐藏桌宠' : '显示桌宠', click: petVisible ? hidePet : showPet },
+      { label: '快速新建提醒', click: createQuickReminderWindow },
+      { label: '新建便利贴', click: createNote },
+      { label: '显示全部便利贴', click: showAllNotes },
+      { label: '隐藏全部便利贴', click: hideAllNotes }
+    ] },
+    { label: '打开控制面板', click: () => createPanelWindow() },
+    { type: 'separator' },
+    { label: '退出', click: quitApp }
+  ];
+}
+
+function petContextMenuTemplate() {
+  return [
+    { label: `FORCOME AI：${forcomeStatusLabel()}`, enabled: false },
+    { label: '打开 FORCOME AI', click: () => openConfiguredPwa() },
+    { type: 'separator' },
+    { label: '隐藏桌宠', click: hidePet },
+    { label: '快速新建提醒', click: createQuickReminderWindow },
     { label: '新建便利贴', click: createNote },
     { label: '显示全部便利贴', click: showAllNotes },
     { label: '隐藏全部便利贴', click: hideAllNotes },
-    { label: '开机自动启动', type: 'checkbox', checked: config.autoLaunch, click: (item) => applyConfigPatch({ autoLaunch: item.checked }) },
     { type: 'separator' },
-    { label: '退出', click: quitApp }
+    { label: '打开控制面板', click: () => createPanelWindow() },
+    { label: config.doNotDisturbMode ? '退出免打扰模式' : '开启免打扰模式', type: 'checkbox', checked: config.doNotDisturbMode === true, click: (item) => applyConfigPatch({ doNotDisturbMode: item.checked }) }
   ];
 }
 
 function createTray() {
   if (tray) return;
   const iconPath = appIconPath();
-  tray = new Tray(iconPath ? nativeImage.createFromPath(iconPath) : nativeImage.createEmpty());
-  tray.setToolTip(APP_NAME);
-  tray.on('click', () => createPanelWindow());
+  const icon = iconPath ? nativeImage.createFromPath(iconPath) : nativeImage.createEmpty();
+  tray = new Tray(icon && !icon.isEmpty() ? icon : nativeImage.createEmpty());
+  updateForcomeTrayStatus();
+  tray.on('click', () => openConfiguredPwa());
+  tray.on('double-click', () => createPanelWindow());
   tray.on('right-click', () => tray.popUpContextMenu(Menu.buildFromTemplate(trayMenuTemplate())));
 }
 
 function showPetContextMenu() {
   if (!petWindow || petWindow.isDestroyed()) return;
-  Menu.buildFromTemplate(trayMenuTemplate()).popup({ window: petWindow });
+  Menu.buildFromTemplate(petContextMenuTemplate()).popup({ window: petWindow });
 }
 
 function focusedWindow() {
@@ -964,9 +1157,12 @@ function applyConfigPatch(patch) {
   const next = { ...config };
   if (Object.prototype.hasOwnProperty.call(input, 'size')) next.size = clamp(Number(input.size) || config.size, MIN_PET_SIZE, MAX_PET_SIZE);
   if (Object.prototype.hasOwnProperty.call(input, 'autoLaunch')) next.autoLaunch = input.autoLaunch === true;
-  if (Object.prototype.hasOwnProperty.call(input, 'tapFeedbackEnabled')) next.tapFeedbackEnabled = input.tapFeedbackEnabled === true;
+  if (Object.prototype.hasOwnProperty.call(input, 'cliAutoReconnect')) next.cliAutoReconnect = input.cliAutoReconnect !== false;
+  if (Object.prototype.hasOwnProperty.call(input, 'petLowResourceMode')) next.petLowResourceMode = input.petLowResourceMode !== false;
+  if (Object.prototype.hasOwnProperty.call(input, 'doNotDisturbMode')) next.doNotDisturbMode = input.doNotDisturbMode === true;
   if (Object.prototype.hasOwnProperty.call(input, 'timeZones')) next.timeZones = normalizeTimeZones(input.timeZones);
   if (Object.prototype.hasOwnProperty.call(input, 'anniversaries')) next.anniversaries = normalizeAnniversaries(input.anniversaries);
+  if (Object.prototype.hasOwnProperty.call(input, 'chinaHolidayEnabled')) next.chinaHolidayEnabled = input.chinaHolidayEnabled !== false;
   if (Object.prototype.hasOwnProperty.call(input, 'calendarViewMode')) next.calendarViewMode = normalizeCalendarViewMode(input.calendarViewMode);
   if (Object.prototype.hasOwnProperty.call(input, 'responses')) next.responses = asList(input.responses, config.responses);
   if (Object.prototype.hasOwnProperty.call(input, 'idleMessages')) next.idleMessages = asList(input.idleMessages, config.idleMessages);
@@ -974,8 +1170,13 @@ function applyConfigPatch(patch) {
   if (Object.prototype.hasOwnProperty.call(input, 'assets')) next.assets = sanitizeRendererAssets(input.assets);
   if (Object.prototype.hasOwnProperty.call(input, 'actionMessages') && input.actionMessages && typeof input.actionMessages === 'object') next.actionMessages = input.actionMessages;
   const oldAutoLaunch = config.autoLaunch;
+  const oldCliAutoReconnect = config.cliAutoReconnect;
   config = normalizeConfig(next);
   if (config.autoLaunch !== oldAutoLaunch) applyAutoLaunchSetting();
+  if (config.cliAutoReconnect !== oldCliAutoReconnect && config.cliAutoReconnect) {
+    connectorManuallyPaused = false;
+    maintainForcomeConnector({ immediate: true }).catch((error) => writeLog('启用 FORCOME AI 自动重连失败。', error));
+  }
   saveConfigSoon();
   broadcastConfig();
   return publicConfig();
@@ -1254,6 +1455,17 @@ function setupIpc() {
   ipcMain.handle('app:get-info', () => ({ version: app.getVersion(), isPackaged: app.isPackaged, updater: publicUpdaterState() }));
   ipcMain.handle('app:check-for-updates', () => checkForUpdates());
   ipcMain.handle('app:get-release-notes', () => getReleaseNotes());
+  ipcMain.handle('forcome-cli:get-status', () => refreshForcomeStatus());
+  ipcMain.handle('forcome-cli:login', () => startForcomeLogin());
+  ipcMain.handle('forcome-cli:start', async () => {
+    const before = await refreshForcomeStatus();
+    if (!before.available) return { ...before, ok: false, error: '内置 FORCOME AI CLI 文件不完整。' };
+    if (!before.authenticated) return { ...before, ok: false, error: '请先登录 FORCOME AI。' };
+    if (before.externalConnectorRunning) return { ...before, ok: false, error: '检测到独立安装版连接器正在运行，请先退出或卸载旧版，避免两个连接器抢占调用。' };
+    return reconnectForcomeConnector();
+  });
+  ipcMain.handle('forcome-cli:stop', () => pauseForcomeConnector());
+  ipcMain.handle('china-holidays:get', (_event, year) => holidayService?.getYear(year) || { year, items: [], available: false });
   ipcMain.handle('config:get', () => publicConfig());
   ipcMain.handle('config:update', (_event, patch) => applyConfigPatch(patch));
   ipcMain.handle('assets:upload', uploadAssets);
@@ -1325,6 +1537,18 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(() => {
     app.setAppUserModelId(APP_ID);
     ensureStorage();
+    forcomeCli = new ForcomeCliManager({
+      appRoot: __dirname,
+      resourcesPath: process.resourcesPath,
+      isPackaged: app.isPackaged,
+      log: writeLog,
+      onProcessExit: ({ kind, code, signal }) => {
+        writeLog(`FORCOME AI ${kind}进程已退出：code=${code ?? 'null'} signal=${signal || 'none'}`);
+        if (!isQuitting) scheduleForcomeMaintenance(kind === '连接器' ? 1500 : 800, true);
+      }
+    });
+    forcomeStatusWatchPath = forcomeCli.daemonStatusPath;
+    fs.watchFile(forcomeStatusWatchPath, { interval: 5000, persistent: false }, () => refreshForcomeStatus());
     writeLog('应用启动。');
     writeLog(`启动参数：${process.argv.join(' | ')}；启动控制面板：${openPanelOnLaunch}`);
     createChineseAppMenu();
@@ -1332,13 +1556,16 @@ if (!app.requestSingleInstanceLock()) {
     setupIpc();
     createPetWindow();
     createTray();
+    maintainForcomeConnector({ immediate: app.isPackaged }).catch((error) => writeLog('自动启动 FORCOME AI 连接器失败。', error));
     notes.filter((note) => note.visible).forEach((note) => createNoteWindow(note.id));
     if (openPanelOnLaunch) createPanelWindow();
     setupAutoUpdater();
     scheduler = new ReminderScheduler({ getReminders: () => config.reminders, saveReminders, notify: notifyReminder, log: writeLog });
     scheduler.start();
-    powerMonitor.on('resume', () => scheduler?.reschedule('resume'));
-    powerMonitor.on('unlock-screen', () => scheduler?.reschedule('unlock'));
+    powerMonitor.on('resume', () => { scheduler?.reschedule('resume'); petWindow?.webContents.send('pet:performance-suspend', false); maintainForcomeConnector({ immediate: true }).catch((error) => writeLog('系统恢复后重连 FORCOME AI 失败。', error)); });
+    powerMonitor.on('lock-screen', () => petWindow?.webContents.send('pet:performance-suspend', true));
+    powerMonitor.on('suspend', () => petWindow?.webContents.send('pet:performance-suspend', true));
+    powerMonitor.on('unlock-screen', () => { scheduler?.reschedule('unlock'); petWindow?.webContents.send('pet:performance-suspend', false); maintainForcomeConnector({ immediate: true }).catch((error) => writeLog('解锁后重连 FORCOME AI 失败。', error)); });
     writeLog('应用启动完成。');
   }).catch((error) => { writeLog('应用启动失败。', error); throw error; });
 }
@@ -1347,9 +1574,26 @@ process.on('uncaughtException', (error) => writeLog('未捕获异常。', error)
 process.on('unhandledRejection', (error) => writeLog('未处理的 Promise 拒绝。', error));
 
 app.on('activate', () => showPet());
-app.on('before-quit', () => {
+app.on('window-all-closed', () => {
+  // CLI and the FORCOME tray are the primary application. Closing or releasing
+  // every optional UI window must not terminate the background connector.
+  writeLog('所有界面窗口均已关闭，FORCOME AI CLI 与托盘继续运行。');
+});
+app.on('before-quit', (event) => {
   isQuitting = true;
+  if (shutdownCleanupComplete) return;
+  event.preventDefault();
+  if (shutdownCleanupStarted) return;
+  shutdownCleanupStarted = true;
   scheduler?.stop();
+  clearTimeout(forcomeSupervisorTimer);
+  if (forcomeStatusWatchPath) fs.unwatchFile(forcomeStatusWatchPath);
   flushPendingNoteBounds();
   saveConfigNow();
+  forcomeCli?.stopTrackedProcesses();
+  const stopPromise = forcomeCli?.stopConnector().catch((error) => writeLog('退出时停止 FORCOME AI 连接器失败。', error)) || Promise.resolve();
+  Promise.race([stopPromise, new Promise((resolve) => setTimeout(resolve, 5000))]).finally(() => {
+    shutdownCleanupComplete = true;
+    app.quit();
+  });
 });

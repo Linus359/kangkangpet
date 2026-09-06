@@ -10,12 +10,15 @@
     html,body { width:100%; height:100%; margin:0; overflow:hidden; }
     body { display:grid; grid-template-rows:42px minmax(0,1fr); border:1px solid #d5b94b; background:#fff4a8; }
     header { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:8px; padding:6px 7px 6px 11px; border-bottom:1px solid rgba(132,99,27,.22); background:#ffe887; -webkit-app-region:drag; }
-    #title { min-width:0; border:0; outline:0; color:#302b24; background:transparent; font:700 14px "Microsoft YaHei",sans-serif; -webkit-app-region:no-drag; }
+    .drag-space { width:100%; height:100%; min-width:0; color:rgba(90,71,27,.42); cursor:grab; font:700 15px/28px sans-serif; letter-spacing:2px; user-select:none; -webkit-app-region:drag; }
+    #noteBody { display:grid; min-height:0; grid-template-rows:auto 1px minmax(0,1fr); background:#fff8c9; -webkit-app-region:no-drag; }
+    #title { width:100%; min-width:0; border:0; outline:0; padding:10px 12px 8px; color:#302b24; background:#fff8c9; font:700 15px "Microsoft YaHei",sans-serif; -webkit-app-region:no-drag; }
+    .title-divider { height:1px; margin:0 12px; background:rgba(132,99,27,.25); }
     .actions { display:flex; gap:4px; -webkit-app-region:no-drag; }
     button { width:28px; height:28px; border:0; border-radius:4px; color:#5a471b; background:transparent; font:600 16px sans-serif; cursor:pointer; }
     button:hover { background:rgba(132,99,27,.16); }
     button.active { color:#fff; background:#a36b20; }
-    #content { width:100%; height:100%; min-height:0; resize:none; border:0; outline:0; padding:12px; color:#302b24; background:#fff8c9; font:14px/1.55 "Microsoft YaHei",sans-serif; }
+    #content { width:100%; height:100%; min-height:0; resize:none; border:0; outline:0; padding:10px 12px 12px; color:#302b24; background:#fff8c9; font:400 14px/1.55 "Microsoft YaHei",sans-serif; }
     #tasks { display:grid; min-height:0; grid-template-rows:auto minmax(0,1fr); gap:8px; padding:10px; overflow:hidden; background:#fff8c9; }
     #tasks[hidden] { display:none; } .task-add { display:grid; grid-template-columns:minmax(0,1fr) 76px 64px 48px; gap:6px; }
     .task-add input,.subtask-add input { min-width:0; border:1px solid #d5b94b; border-radius:3px; padding:6px; background:#fffdf1; color:#302b24; font:13px "Microsoft YaHei",sans-serif; }
@@ -28,7 +31,7 @@
 </head>
 <body>
   <header>
-    <input id="title" maxlength="120" aria-label="便利贴标题" placeholder="未命名便利贴">
+    <div class="drag-space" title="拖动便利贴" aria-hidden="true">⠿</div>
     <div class="actions">
       <button id="mode" type="button" title="切换任务清单" aria-label="切换任务清单">✓</button>
       <button id="alwaysOnTop" type="button" title="置顶" aria-label="置顶">↑</button>
@@ -36,11 +39,15 @@
       <button id="hide" type="button" title="隐藏" aria-label="隐藏">−</button>
     </div>
   </header>
-  <textarea id="content" maxlength="20000" aria-label="便利贴正文" placeholder="输入内容..."></textarea>
-  <section id="tasks" hidden aria-label="任务清单">
-    <div class="task-add"><input id="newTask" maxlength="240" placeholder="添加任务"><select id="newPriority" aria-label="优先级"><option value="high">高优先级</option><option value="normal" selected>普通</option><option value="low">低优先级</option></select><select id="newRepeat" aria-label="重复"><option value="none" selected>一次</option><option value="daily">每天</option></select><button id="addTask" type="button">添加</button></div>
-    <div id="taskList"></div>
-  </section>
+  <main id="noteBody">
+    <input id="title" maxlength="120" aria-label="便利贴标题" placeholder="未命名便利贴">
+    <div class="title-divider" aria-hidden="true"></div>
+    <textarea id="content" maxlength="20000" aria-label="便利贴正文" placeholder="输入内容..."></textarea>
+    <section id="tasks" hidden aria-label="任务清单">
+      <div class="task-add"><input id="newTask" maxlength="240" placeholder="添加任务"><select id="newPriority" aria-label="优先级"><option value="high">高优先级</option><option value="normal" selected>普通</option><option value="low">低优先级</option></select><select id="newRepeat" aria-label="重复"><option value="none" selected>一次</option><option value="daily">每天</option></select><button id="addTask" type="button">添加</button></div>
+      <div id="taskList"></div>
+    </section>
+  </main>
   <script>
     (() => {
       const api = window.noteApi;
@@ -56,6 +63,7 @@
       const updateTasks = async (nextTasks) => { const result = await api.update({ tasks:nextTasks }); if (result?.ok) render(result.note); };
       const scheduleSave = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => { save().catch(() => {}); }, 500); };
       title.addEventListener('input', scheduleSave); content.addEventListener('input', scheduleSave);
+      title.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); content.focus(); } });
       title.addEventListener('blur', () => { clearTimeout(saveTimer); save().catch(() => {}); }); content.addEventListener('blur', () => { clearTimeout(saveTimer); save().catch(() => {}); });
       document.querySelector('#hide').addEventListener('click', () => api.hide());
       document.querySelector('#delete').addEventListener('click', async () => { if (!confirm('确定删除当前便利贴？删除后无法恢复。')) return; const result = await api.remove(); if (!result?.ok) alert(result?.error || '删除便利贴失败，请重试。'); });

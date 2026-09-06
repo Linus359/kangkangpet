@@ -18,8 +18,14 @@ const required = [
   'src/main/reminder-scheduler.js',
   'src/main/notes-store.js',
   'src/main/pwa-launcher.js',
+  'src/main/forcome-cli.js',
+  'src/main/holiday-service.js',
   'assets/cat',
-  'build/face.ico'
+  'dist/cli/runtime/node.exe',
+  'dist/cli/cli/node_modules/@forcome/ai-cli/bin/fai.js',
+  'dist/cli/ForcomeAiTray.exe',
+  'dist/cli/assets/forcome.ico',
+  'dist/cli/assets/forcomelogo.png'
 ];
 
 const missing = required.filter((file) => !fs.existsSync(path.join(root, file)));
@@ -38,6 +44,14 @@ if (JSON.stringify(calendarViews) !== JSON.stringify(expectedCalendarViews)) {
 }
 if (panel.includes('小方块') || panel.includes('长条') || panel.includes('当日')) {
   console.error('Smoke check failed. Calendar view labels must remain 年/月/周/日.');
+  process.exit(1);
+}
+if (!panel.includes('中国法定节假日') || !panel.includes('调休补班') || panel.includes('国家 / 地区（可多选）')) {
+  console.error('Smoke check failed. Calendar must use the simplified official China holiday schedule.');
+  process.exit(1);
+}
+if (!panel.includes('免打扰模式') || panel.includes('启用轻拍反馈')) {
+  console.error('Smoke check failed. Pet settings must expose do-not-disturb instead of tap feedback.');
   process.exit(1);
 }
 

@@ -17,7 +17,14 @@ test('packages only required Windows x64 runtime files with maximum compression'
   assert.deepEqual(build.win.target, [{ target: 'nsis', arch: ['x64'] }]);
   assert.ok(build.files.includes('assets/cat-processed/**/*'));
   assert.ok(build.files.includes('assets/head/**/*'));
-  assert.ok(build.files.includes('build/face.ico'));
+  assert.ok(!build.files.includes('build/face.ico'));
+  assert.equal(build.win.icon, 'dist/cli/assets/forcome.ico');
+  assert.equal(build.nsis.installerIcon, 'dist/cli/assets/forcome.ico');
+  assert.equal(build.nsis.uninstallerIcon, 'dist/cli/assets/forcome.ico');
+  assert.equal(build.nsis.installerHeaderIcon, 'dist/cli/assets/forcome.ico');
+  assert.ok(build.extraResources.some((resource) => resource.from === 'dist/cli/runtime' && resource.to === 'forcome-cli/runtime'));
+  assert.ok(build.extraResources.some((resource) => resource.from === 'dist/cli/cli' && resource.to === 'forcome-cli/cli'));
+  assert.ok(build.extraResources.some((resource) => resource.from === 'dist/cli/ForcomeAiTray.exe' && resource.to === 'forcome-cli/ForcomeAiTray.exe'));
   assert.ok(build.files.includes('!**/*.map'));
   assert.ok(build.files.includes('!node_modules/exceljs/dist/**/*'));
   assert.ok(!build.files.includes('assets/**/*'));

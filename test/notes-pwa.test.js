@@ -6,7 +6,8 @@ const os = require('os');
 const path = require('path');
 const test = require('node:test');
 const { NotesStore, normalizePayload } = require('../src/main/notes-store');
-const { normalizePwaConfig, openPwa } = require('../src/main/pwa-launcher');
+const { findInstalledPwaShortcut, normalizePwaConfig, openPwa } = require('../src/main/pwa-launcher');
+const noteHtml = fs.readFileSync(path.join(__dirname, '..', 'note.html'), 'utf8');
 
 test('notes store skips malformed notes and persists atomically', () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'kangkang-notes-'));
@@ -42,6 +43,15 @@ test('task notes preserve subtasks and reset daily task completion on a new date
   assert.equal(reset.tasks[0].subtasks[0].completed, false);
 });
 
+test('note header is a large drag region while title and content share the editor body', () => {
+  assert.match(noteHtml, /class="drag-space"[\s\S]*?title="拖动便利贴"/);
+  assert.match(noteHtml, /\.drag-space \{[\s\S]*?-webkit-app-region:drag;/);
+  assert.match(noteHtml, /<main id="noteBody">[\s\S]*?<input id="title"[\s\S]*?class="title-divider"[\s\S]*?<textarea id="content"/);
+  assert.match(noteHtml, /#title \{[\s\S]*?font:700 15px/);
+  assert.match(noteHtml, /#content \{[\s\S]*?font:400 14px/);
+  assert.doesNotMatch(noteHtml, /editTitle|编辑标题|✎/);
+});
+
 test('PWA configuration accepts only structured local commands', () => {
   const config = normalizePwaConfig({ url: 'https://example.test/app', launchCommand: { file: 'C:\\Apps\\Pwa.exe', args: ['--app'] }, processNames: ['Pwa.exe'], windowTitleKeywords: ['Target'] });
   assert.deepEqual(config.launchCommand, { file: 'C:\\Apps\\Pwa.exe', args: ['--app'] });
@@ -54,6 +64,7 @@ test('PWA flow reuses a matching window before attempting a launch', async () =>
   let launches = 0;
   let fallbacks = 0;
   const result = await openPwa({ url: 'https://example.test', windowTitleKeywords: ['Target'] }, {
+    findInstalledShortcut: async () => null,
     findWindow: async () => ({ Id: 42, MainWindowTitle: 'Target' }),
     activateWindow: async () => true,
     launch: () => { launches += 1; return true; },
@@ -67,6 +78,7 @@ test('PWA flow reuses a matching window before attempting a launch', async () =>
 test('PWA flow falls back to the system browser after a failed configured launch', async () => {
   let fallbackUrl = null;
   const result = await openPwa({ url: 'https://example.test', launchCommand: { file: 'missing.exe', args: [] }, windowTitleKeywords: ['Target'] }, {
+    findInstalledShortcut: async () => null,
     findWindow: async () => null,
     launch: () => false,
     openExternal: async (url) => { fallbackUrl = url; }
@@ -91,4 +103,34 @@ test('PWA flow opens an installed Start menu shortcut before browser fallback', 
   assert.equal(openedPath, 'C:\\Start Menu\\Target.lnk');
   assert.equal(fallbackUrl, null);
   assert.ok(findCalls >= 3);
+});
+
+test('installed PWA discovery prefers the exact app and preserves its browser profile and app id', async () => {
+  const output = JSON.stringify([
+    { Path: 'C:\\Start Menu\\Forcome Cloud.lnk', TargetPath: 'C:\\Browsers\\Owner\\browser_proxy.exe', Name: 'Forcome Cloud', Description: '', AppId: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', Profile: 'Profile 2', AppUrl: '', Source: 'shortcut' },
+    { Path: 'C:\\Start Menu\\FORCOME AI.lnk', TargetPath: 'C:\\Browsers\\Owner\\browser_proxy.exe', Name: 'FORCOME AI', Description: 'FORCOME AI portal', AppId: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', Profile: 'Default', AppUrl: '', Source: 'shortcut' }
+  ]);
+  const installed = await findInstalledPwaShortcut(normalizePwaConfig({ url: 'https://ai.forcome.test', windowTitleKeywords: ['FORCOME AI', 'FORCOME'] }), async () => ({ ok: true, output }));
+  assert.equal(installed.name, 'FORCOME AI');
+  assert.equal(installed.appId, 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+  assert.equal(installed.processName, 'browser');
+  assert.deepEqual(installed.args, ['--profile-directory=Default', '--app-id=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb']);
+});
+
+test('installed PWA launch uses the owning browser instead of the default browser URL handler', async () => {
+  let launchedCommand = null;
+  let fallbackUrl = null;
+  let findCalls = 0;
+  const installed = { path: '', file: 'C:\\Browsers\\Owner\\browser_proxy.exe', args: ['--profile-directory=Default', '--app-id=target-app'], appId: 'target-app', processName: 'browser' };
+  const result = await openPwa({ url: 'https://example.test', windowTitleKeywords: ['Target'] }, {
+    findInstalledShortcut: async () => installed,
+    findWindow: async (_config, owner) => { findCalls += 1; assert.equal(owner, installed); return findCalls >= 4 ? { Id: 42, MainWindowHandle: 99 } : null; },
+    activateWindow: async () => true,
+    launch: (command) => { launchedCommand = command; return true; },
+    delay: async () => {},
+    openExternal: async (url) => { fallbackUrl = url; }
+  });
+  assert.equal(result.installed, true);
+  assert.deepEqual(launchedCommand, { file: installed.file, args: installed.args });
+  assert.equal(fallbackUrl, null);
 });
