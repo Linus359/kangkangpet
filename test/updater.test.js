@@ -26,6 +26,13 @@ test('checks packaged installs for updates without affecting development', () =>
   assert.match(mainSource, /const \{ autoUpdater \} = require\('electron-updater'\);/);
   assert.match(mainSource, /function setupAutoUpdater\(\) \{[\s\S]*?if \(!app\.isPackaged\) return;/);
   assert.match(mainSource, /autoUpdater\.checkForUpdates\(\)/);
+  assert.match(mainSource, /autoUpdater\.autoDownload = false;/);
+  assert.match(mainSource, /autoUpdater\.disableDifferentialDownload = false;/);
+  assert.match(mainSource, /autoUpdater\.on\('download-progress'/);
+  assert.match(mainSource, /promptAndDownloadUpdate\(info\)/);
+  assert.match(mainSource, /autoUpdater\.downloadUpdate\(\)/);
+  assert.match(mainSource, /autoUpdater\.quitAndInstall\(true, true\)/);
+  assert.match(mainSource, /下载完成后程序会自动重启并完成安装/);
   assert.match(mainSource, /setupAutoUpdater\(\);/);
 });
 

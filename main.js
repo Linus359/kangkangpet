@@ -117,6 +117,9 @@ let pendingPetLayout = null;
 let petLayoutScheduled = false;
 let updaterConfigured = false;
 let updaterCheckPromise = null;
+let updaterDownloadPromise = null;
+let updaterPromptVersion = null;
+let updaterInstalling = false;
 let updaterState = { status: 'idle', version: null, message: '尚未检查更新。' };
 let forcomeStatus = { available: false, authenticated: false, connectorRunning: false, externalConnectorRunning: false };
 let forcomeSupervisorTimer = null;
@@ -150,27 +153,79 @@ function setUpdaterState(next) {
 function configureAutoUpdater() {
   if (updaterConfigured || !app.isPackaged) return;
   updaterConfigured = true;
-  autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = true;
+  // Keep the decision in the user's hands. electron-updater still uses its
+  // NSIS differential downloader when the previous block map/cache is
+  // available, but never starts a large download without confirmation.
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = false;
+  autoUpdater.autoRunAppAfterInstall = true;
+  autoUpdater.disableDifferentialDownload = false;
+  autoUpdater.disableWebInstaller = true;
   autoUpdater.on('checking-for-update', () => setUpdaterState({ status: 'checking', message: '正在检查更新...' }));
   autoUpdater.on('error', (error) => {
-    setUpdaterState({ status: 'error', version: null, message: '检查更新失败，请稍后重试。' });
+    updaterDownloadPromise = null;
+    updaterPromptVersion = null;
+    setUpdaterState({ status: 'error', version: null, message: '更新失败，请稍后重试。' });
     writeLog('在线更新检查失败。', error);
   });
   autoUpdater.on('update-available', (info) => {
-    setUpdaterState({ status: 'downloading', version: info.version, message: `发现新版本 ${info.version}，正在下载...` });
+    setUpdaterState({ status: 'awaiting-confirmation', version: info.version, message: `发现新版本 ${info.version}，等待确认下载。` });
     writeLog(`发现在线更新：${info.version}。`);
+    promptAndDownloadUpdate(info).catch((error) => writeLog('更新确认流程失败。', error));
   });
   autoUpdater.on('update-not-available', () => setUpdaterState({ status: 'latest', version: app.getVersion(), message: `当前已是最新版本（${app.getVersion()}）。` }));
-  autoUpdater.on('update-downloaded', (info) => {
-    setUpdaterState({ status: 'downloaded', version: info.version, message: `新版本 ${info.version} 已下载，退出应用后安装。` });
-    writeLog(`在线更新已下载：${info.version}。将在退出应用后安装。`);
-    try {
-      new Notification({ title: APP_NAME, body: `新版本 ${info.version} 已下载，将在退出康康熊后自动安装。` }).show();
-    } catch (error) {
-      writeLog('无法显示更新完成通知。', error);
-    }
+  autoUpdater.on('download-progress', (progress) => {
+    const percent = Number.isFinite(progress?.percent) ? Math.max(0, Math.min(100, progress.percent)) : null;
+    const speed = Number.isFinite(progress?.bytesPerSecond) && progress.bytesPerSecond > 0 ? ` · ${(progress.bytesPerSecond / 1024 / 1024).toFixed(1)} MB/s` : '';
+    setUpdaterState({ status: 'downloading', message: percent == null ? '正在下载更新...' : `正在下载更新 ${percent.toFixed(0)}%${speed}` });
   });
+  autoUpdater.on('update-downloaded', (info) => {
+    updaterDownloadPromise = null;
+    setUpdaterState({ status: 'installing', version: info.version, message: `新版本 ${info.version} 已下载，正在重启安装...` });
+    writeLog(`在线更新已下载：${info.version}，准备自动重启安装。`);
+    if (updaterInstalling) return;
+    updaterInstalling = true;
+    // Give the renderer one tick to display the final state, then let the
+    // updater launch the installer and restart the app automatically.
+    setTimeout(() => {
+      try { autoUpdater.quitAndInstall(true, true); }
+      catch (error) { updaterInstalling = false; setUpdaterState({ status: 'error', version: info.version, message: '安装更新失败，请稍后重试。' }); writeLog('自动安装更新失败。', error); }
+    }, 350);
+  });
+}
+
+async function promptAndDownloadUpdate(info) {
+  const version = info?.version || null;
+  if (!version || updaterDownloadPromise || updaterPromptVersion === version) return;
+  updaterPromptVersion = version;
+  const options = {
+    type: 'info',
+    title: `${APP_NAME} 更新`,
+    message: `发现新版本 ${version}`,
+    detail: '是否现在下载更新？下载完成后程序会自动重启并完成安装。选择“稍后”不会影响当前使用。',
+    buttons: ['立即更新', '稍后'],
+    defaultId: 0,
+    cancelId: 1,
+    noLink: true
+  };
+  const parent = panelWindow && !panelWindow.isDestroyed() ? panelWindow : null;
+  const result = parent ? await dialog.showMessageBox(parent, options) : await dialog.showMessageBox(options);
+  if (result.response !== 0) {
+    updaterPromptVersion = null;
+    setUpdaterState({ status: 'deferred', version, message: `已暂缓更新 ${version}，可稍后点击“检查更新”。` });
+    writeLog(`用户暂缓在线更新：${version}。`);
+    return { status: 'deferred', version };
+  }
+  setUpdaterState({ status: 'downloading', version, message: '正在下载更新...' });
+  updaterDownloadPromise = autoUpdater.downloadUpdate().catch((error) => {
+    updaterDownloadPromise = null;
+    updaterPromptVersion = null;
+    setUpdaterState({ status: 'error', version, message: '更新下载失败，请稍后重试。' });
+    writeLog('在线更新下载失败。', error);
+    return null;
+  });
+  await updaterDownloadPromise;
+  return { status: 'downloading', version };
 }
 
 async function checkForUpdates() {
@@ -188,7 +243,9 @@ async function checkForUpdates() {
     .then((result) => {
       if (result?.isUpdateAvailable) {
         const version = result.updateInfo?.version || updaterState.version;
-        const next = { status: 'downloading', version: version || null, message: version ? `发现新版本 ${version}，正在下载...` : '发现新版本，正在下载...' };
+        const next = ['awaiting-confirmation', 'downloading', 'deferred', 'installing'].includes(updaterState.status)
+          ? updaterState
+          : { status: 'awaiting-confirmation', version: version || null, message: version ? `发现新版本 ${version}，等待确认下载。` : '发现新版本，等待确认下载。' };
         setUpdaterState(next);
         return next;
       }
