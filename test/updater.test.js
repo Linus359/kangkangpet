@@ -50,11 +50,10 @@ test('keeps calendar creation in a date-triggered modal and provides an import t
   assert.match(panelSource, /function downloadReminderTemplate\(\)/);
 });
 
-test('keeps crowded month cells readable and lets day and week views manage reminder state', () => {
-  assert.match(panelSource, /const visibleEvents = events\.slice\(0, 3\);/);
-  assert.match(panelSource, /more\.textContent = `查看全部（\$\{events\.length\}）`/);
-  assert.match(panelSource, /calendarView = 'day'; renderCalendar\(\);/);
-  assert.match(panelSource, /\.cell-events \{[^}]*overflow:hidden;/);
+test('keeps month cells scrollable and lets day and week views manage reminder state', () => {
+  assert.match(panelSource, /\.cell-events \{[^}]*overflow-y:auto;/);
+  assert.doesNotMatch(panelSource, /const visibleEvents = events\.slice\(0, 3\);/);
+  assert.doesNotMatch(panelSource, /more\.textContent = `查看全部（\$\{events\.length\}）`/);
   assert.match(panelSource, /toggle\.textContent = reminder\.enabled === false \? '启用' : '停用';/);
   assert.match(panelSource, /api\.bulkUpdateReminders\(\[reminder\.id\], reminder\.enabled === false \? 'enable' : 'disable'\)/);
   assert.doesNotMatch(panelSource, /edit\.textContent = compact \? '编辑' : '打开';/);
