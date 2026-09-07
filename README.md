@@ -68,7 +68,7 @@
 
 ## 当前版本
 
-`v1.0.6`，内置 FORCOME AI CLI `0.0.47`。
+`v1.0.7`，内置 FORCOME AI CLI `0.0.47`。
 
 完整版本记录参见 [CHANGELOG.md](CHANGELOG.md)。
 
