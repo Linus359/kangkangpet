@@ -122,6 +122,21 @@ function installedPwaScore(candidate, config) {
   return score;
 }
 
+function hasPwaLaunchMarker(commandLine) {
+  return /(?:^|\s)--(?:app-id|app)(?:=|\s)/i.test(asText(commandLine, 4000));
+}
+
+function matchesInstalledPwaCommand(commandLine, installedPwa) {
+  const command = asText(commandLine, 4000).toLowerCase();
+  if (!hasPwaLaunchMarker(command)) return false;
+  if (installedPwa?.appId && new RegExp(`(?:^|\\s)--app-id(?:=|\\s)["']?${installedPwa.appId.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}(?:["']|\\s|$)`, 'i').test(command)) return true;
+  if (installedPwa?.appUrl) {
+    const normalizedUrl = installedPwa.appUrl.toLowerCase().replace(/["']/g, '');
+    return command.includes(`--app=${normalizedUrl}`) || command.includes(`--app ${normalizedUrl}`);
+  }
+  return false;
+}
+
 async function findPwaWindow(config, installedPwa = null, runCommand = runPowerShell) {
   if (typeof installedPwa === 'function') { runCommand = installedPwa; installedPwa = null; }
   if (process.platform !== 'win32' || (!config.windowTitleKeywords.length && !config.processNames.length && !installedPwa?.appId)) return null;
@@ -138,9 +153,12 @@ async function findPwaWindow(config, installedPwa = null, runCommand = runPowerS
     const titleMatches = config.windowTitleKeywords.length > 0 && config.windowTitleKeywords.some((keyword) => title.includes(keyword));
     const processMatches = config.processNames.length > 0 && config.processNames.includes(processName);
     if (installedPwa) {
-      const appIdMatches = installedPwa.appId && commandLine.includes(installedPwa.appId);
-      const ownerMatches = installedPwa.processName && processName === installedPwa.processName;
-      return appIdMatches || (ownerMatches && titleMatches);
+      // A regular browser tab can have the same title and process as the PWA.
+      // Only reuse a window when its command line carries the installed app
+      // marker (app-id/app URL), and optionally use owner/title as a sanity check.
+      const markerMatches = matchesInstalledPwaCommand(commandLine, installedPwa);
+      const ownerMatches = !installedPwa.processName || processName === installedPwa.processName;
+      return markerMatches && ownerMatches && (!titleMatches || markerMatches);
     }
     return (!config.windowTitleKeywords.length || titleMatches) && (!config.processNames.length || processMatches);
   }) || null;
@@ -252,4 +270,4 @@ async function openPwa(configValue, { openExternal, openPath, log = () => {}, fi
   return { ok: false, message: '无法打开目标 PWA，请检查设置或默认浏览器。' };
 }
 
-module.exports = { DEFAULT_PWA_CONFIG, normalizePwaConfig, normalizeLaunchCommand, normalizeInstalledPwa, installedPwaScore, findPwaWindow, findInstalledPwaShortcut, activatePwaWindow, launchConfiguredCommand, openInstalledPwaShortcut, openPwa };
+module.exports = { DEFAULT_PWA_CONFIG, normalizePwaConfig, normalizeLaunchCommand, normalizeInstalledPwa, installedPwaScore, hasPwaLaunchMarker, matchesInstalledPwaCommand, findPwaWindow, findInstalledPwaShortcut, activatePwaWindow, launchConfiguredCommand, openInstalledPwaShortcut, openPwa };

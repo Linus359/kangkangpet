@@ -1,13 +1,13 @@
 {
   "name": "kangkangpet",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "FORCOME AI CLI 桌面伴侣：单托盘、康康熊桌宠、本地日程提醒与便利贴。",
   "main": "main.js",
   "scripts": {
     "prestart": "node scripts/process-pet-assets.js",
     "start": "electron .",
     "test": "node --test",
-    "check": "node --check main.js && node --check src/main/reminders.js && node --check src/main/reminder-scheduler.js && node --check src/main/config-store.js && node --check src/main/notes-store.js && node --check src/main/pwa-launcher.js && node --check src/main/forcome-cli.js && node --check src/main/holiday-service.js && node --check src/main/productivity-tools.js && node --check src/main/logger.js && node --check src/main/migration.js && node --check src/main/reminder-backup.js",
+    "check": "node --check main.js && node --check src/main/reminders.js && node --check src/main/reminder-scheduler.js && node --check src/main/config-store.js && node --check src/main/notes-store.js && node --check src/main/pwa-launcher.js && node --check src/main/forcome-cli.js && node --check src/main/holiday-service.js && node --check src/main/us-holiday-service.js && node --check src/main/productivity-tools.js && node --check src/main/logger.js && node --check src/main/migration.js && node --check src/main/reminder-backup.js",
     "export:domain-reminders": "python scripts/export-domain-reminders.py",
     "smoke": "node scripts/smoke-check.js",
     "prepack": "node scripts/process-pet-assets.js",

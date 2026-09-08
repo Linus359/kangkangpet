@@ -12,6 +12,7 @@ const { NOTE_VERSION, NotesStore, normalizeNote } = require('./src/main/notes-st
 const { DEFAULT_PWA_CONFIG, normalizePwaConfig, openPwa } = require('./src/main/pwa-launcher');
 const { DEFAULT_TIME_ZONES, normalizeAnniversaries, normalizeCalendarViewMode, normalizeTimeZones } = require('./src/main/productivity-tools');
 const { ChinaHolidayService } = require('./src/main/holiday-service');
+const { USHolidayService } = require('./src/main/us-holiday-service');
 const { Logger } = require('./src/main/logger');
 const { migrateLegacyPayload } = require('./src/main/migration');
 const { parseReminderBackup, parseReminderCsv, parseReminderText, parseReminderXlsx, serializeReminderBackup } = require('./src/main/reminder-backup');
@@ -85,6 +86,7 @@ const defaultConfig = {
   timeZones: DEFAULT_TIME_ZONES,
   anniversaries: [],
   chinaHolidayEnabled: true,
+  usHolidayEnabled: false,
   calendarViewMode: 'month'
 };
 
@@ -97,6 +99,7 @@ let notes = [];
 let logger;
 let scheduler;
 let holidayService;
+let usHolidayService;
 let forcomeCli;
 let petWindow;
 let panelWindow;
@@ -120,6 +123,7 @@ let updaterCheckPromise = null;
 let updaterDownloadPromise = null;
 let updaterPromptVersion = null;
 let updaterInstalling = false;
+let updaterShutdownPromise = null;
 let updaterState = { status: 'idle', version: null, message: '尚未检查更新。' };
 let forcomeStatus = { available: false, authenticated: false, connectorRunning: false, externalConnectorRunning: false };
 let forcomeSupervisorTimer = null;
@@ -185,12 +189,18 @@ function configureAutoUpdater() {
     writeLog(`在线更新已下载：${info.version}，准备自动重启安装。`);
     if (updaterInstalling) return;
     updaterInstalling = true;
-    // Give the renderer one tick to display the final state, then let the
-    // updater launch the installer and restart the app automatically.
-    setTimeout(() => {
-      try { autoUpdater.quitAndInstall(true, true); }
-      catch (error) { updaterInstalling = false; setUpdaterState({ status: 'error', version: info.version, message: '安装更新失败，请稍后重试。' }); writeLog('自动安装更新失败。', error); }
-    }, 350);
+    // Stop the embedded connector first so Windows can replace every bundled
+    // file cleanly. The updater then exits this process and starts the NSIS
+    // installer, which relaunches KangKangPet when installation is complete.
+    updaterShutdownPromise = Promise.resolve()
+      .then(() => { isQuitting = true; scheduler?.stop(); clearTimeout(forcomeSupervisorTimer); if (forcomeStatusWatchPath) fs.unwatchFile(forcomeStatusWatchPath); flushPendingNoteBounds(); saveConfigNow(); return forcomeCli?.stopConnector(); })
+      .catch((error) => writeLog('更新安装前停止 FORCOME AI 连接器失败。', error))
+      .finally(() => {
+        setTimeout(() => {
+          try { autoUpdater.quitAndInstall(true, true); }
+          catch (error) { updaterInstalling = false; isQuitting = false; setUpdaterState({ status: 'error', version: info.version, message: '安装更新失败，请稍后重试。' }); writeLog('自动安装更新失败。', error); }
+        }, 150);
+      });
   });
 }
 
@@ -414,6 +424,7 @@ function normalizeConfig(raw) {
   next.timeZones = normalizeTimeZones(next.timeZones);
   next.anniversaries = normalizeAnniversaries(next.anniversaries);
   next.chinaHolidayEnabled = next.chinaHolidayEnabled !== false;
+  next.usHolidayEnabled = next.usHolidayEnabled === true;
   delete next.holidaySettings;
   next.calendarViewMode = normalizeCalendarViewMode(next.calendarViewMode);
   next.interactionButtons = normalizeButtons(next.interactionButtons);
@@ -446,6 +457,7 @@ function ensureStorage() {
   configStore = new ConfigStore(configPath, { log: writeLog, normalize: normalizeConfig });
   notesStore = new NotesStore(path.join(userData, 'notes.json'), { log: writeLog });
   holidayService = new ChinaHolidayService({ cachePath: path.join(userData, 'china-holiday-cache.json'), log: writeLog });
+  usHolidayService = new USHolidayService({ cachePath: path.join(userData, 'us-holiday-cache.json'), log: writeLog });
 }
 
 function bundledAssetsDir() {
@@ -1087,8 +1099,19 @@ async function maintainForcomeConnector({ immediate = false } = {}) {
   return status;
 }
 
-async function startForcomeLogin() {
-  const result = forcomeCli?.startLogin() || { ok: false, error: 'CLI 尚未初始化。' };
+async function startForcomeLogin(options = {}) {
+  const force = options && options.force === true;
+  const before = await refreshForcomeStatus();
+  if (!before.available) return { ...before, action: { ok: false, error: 'CLI 尚未初始化或文件不完整。' } };
+  if (before.authenticated && !force) {
+    connectorManuallyPaused = false;
+    const status = await forcomeCli.ensureConnectorStarted();
+    forcomeStatus = status;
+    broadcastForcomeStatus();
+    scheduleForcomeMaintenance(4000);
+    return { ...status, action: { ok: true, reused: true, message: '已检测到钉钉授权，正在自动连接 FORCOME AI。' } };
+  }
+  const result = forcomeCli.startLogin();
   if (!result.ok) writeLog('FORCOME AI 登录启动失败。', new Error(result.error));
   await refreshForcomeStatus();
   return { ...forcomeStatus, action: result };
@@ -1117,7 +1140,7 @@ function trayMenuTemplate() {
   return [
     { label: `FORCOME AI：${forcomeStatusLabel()}`, enabled: false },
     { label: '打开 FORCOME AI', click: () => openConfiguredPwa() },
-    { label: forcomeStatus.authenticated ? '重新登录 / 切换账号' : '登录 FORCOME AI', enabled: forcomeStatus.available && !forcomeStatus.loginRunning, click: () => startForcomeLogin() },
+    { label: forcomeStatus.authenticated ? '重新登录 / 切换账号' : '登录 FORCOME AI', enabled: forcomeStatus.available && !forcomeStatus.loginRunning, click: () => startForcomeLogin({ force: true }) },
     { label: forcomeStatus.connectorRunning ? '重新连接 CLI' : '连接 CLI', enabled: forcomeStatus.available && forcomeStatus.authenticated && !forcomeStatus.externalConnectorRunning, click: () => reconnectForcomeConnector() },
     { label: '停止 CLI 连接器', enabled: forcomeStatus.connectorRunning, click: () => pauseForcomeConnector() },
     { label: '离线自动重连', type: 'checkbox', checked: config.cliAutoReconnect !== false, click: (item) => { connectorManuallyPaused = false; applyConfigPatch({ cliAutoReconnect: item.checked }); if (item.checked) maintainForcomeConnector({ immediate: true }).catch((error) => writeLog('手动启用 FORCOME AI 自动重连失败。', error)); } },
@@ -1220,6 +1243,7 @@ function applyConfigPatch(patch) {
   if (Object.prototype.hasOwnProperty.call(input, 'timeZones')) next.timeZones = normalizeTimeZones(input.timeZones);
   if (Object.prototype.hasOwnProperty.call(input, 'anniversaries')) next.anniversaries = normalizeAnniversaries(input.anniversaries);
   if (Object.prototype.hasOwnProperty.call(input, 'chinaHolidayEnabled')) next.chinaHolidayEnabled = input.chinaHolidayEnabled !== false;
+  if (Object.prototype.hasOwnProperty.call(input, 'usHolidayEnabled')) next.usHolidayEnabled = input.usHolidayEnabled === true;
   if (Object.prototype.hasOwnProperty.call(input, 'calendarViewMode')) next.calendarViewMode = normalizeCalendarViewMode(input.calendarViewMode);
   if (Object.prototype.hasOwnProperty.call(input, 'responses')) next.responses = asList(input.responses, config.responses);
   if (Object.prototype.hasOwnProperty.call(input, 'idleMessages')) next.idleMessages = asList(input.idleMessages, config.idleMessages);
@@ -1513,7 +1537,7 @@ function setupIpc() {
   ipcMain.handle('app:check-for-updates', () => checkForUpdates());
   ipcMain.handle('app:get-release-notes', () => getReleaseNotes());
   ipcMain.handle('forcome-cli:get-status', () => refreshForcomeStatus());
-  ipcMain.handle('forcome-cli:login', () => startForcomeLogin());
+  ipcMain.handle('forcome-cli:login', (_event, options) => startForcomeLogin(options));
   ipcMain.handle('forcome-cli:start', async () => {
     const before = await refreshForcomeStatus();
     if (!before.available) return { ...before, ok: false, error: '内置 FORCOME AI CLI 文件不完整。' };
@@ -1523,6 +1547,7 @@ function setupIpc() {
   });
   ipcMain.handle('forcome-cli:stop', () => pauseForcomeConnector());
   ipcMain.handle('china-holidays:get', (_event, year) => holidayService?.getYear(year) || { year, items: [], available: false });
+  ipcMain.handle('us-holidays:get', (_event, year) => usHolidayService?.getYear(year) || { year, items: [], available: false });
   ipcMain.handle('config:get', () => publicConfig());
   ipcMain.handle('config:update', (_event, patch) => applyConfigPatch(patch));
   ipcMain.handle('assets:upload', uploadAssets);
@@ -1637,6 +1662,7 @@ app.on('window-all-closed', () => {
   writeLog('所有界面窗口均已关闭，FORCOME AI CLI 与托盘继续运行。');
 });
 app.on('before-quit', (event) => {
+  if (updaterInstalling && updaterShutdownPromise) return;
   isQuitting = true;
   if (shutdownCleanupComplete) return;
   event.preventDefault();

@@ -45,9 +45,32 @@ function holidaysForDate(date, anniversaries = []) {
 }
 
 function dateDifference(from, to) {
-  const left = new Date(`${from}T00:00:00`); const right = new Date(`${to}T00:00:00`);
+  const parse = (value) => { const text = String(value || '').trim(); if (!text) return new Date(NaN); return new Date(/^\d{4}-\d{2}-\d{2}$/.test(text) ? `${text}T00:00:00` : text); };
+  const left = parse(from); const right = parse(to);
   if (!Number.isFinite(left.getTime()) || !Number.isFinite(right.getTime())) return null;
   return Math.round((right - left) / 86400000);
+}
+
+function dateDifferenceMinutes(from, to) {
+  const parse = (value) => { const text = String(value || '').trim(); if (!text) return new Date(NaN); return new Date(/^\d{4}-\d{2}-\d{2}$/.test(text) ? `${text}T00:00:00` : text); };
+  const left = parse(from); const right = parse(to);
+  if (!Number.isFinite(left.getTime()) || !Number.isFinite(right.getTime())) return null;
+  return Math.round((right - left) / 60000);
+}
+
+function formatDateDifference(from, to) {
+  const totalMinutes = dateDifferenceMinutes(from, to);
+  if (totalMinutes == null) return null;
+  const sign = totalMinutes < 0 ? '-' : '';
+  const absolute = Math.abs(totalMinutes);
+  const days = Math.floor(absolute / 1440);
+  const hours = Math.floor((absolute % 1440) / 60);
+  const minutes = absolute % 60;
+  const parts = [];
+  if (days) parts.push(`${days} 天`);
+  if (hours) parts.push(`${hours} 小时`);
+  if (minutes || !parts.length) parts.push(`${minutes} 分钟`);
+  return `${sign}${parts.join(' ')}`;
 }
 
 function convertUnit(value, from, to) {
@@ -58,4 +81,4 @@ function convertUnit(value, from, to) {
   return number * factors[from] / factors[to];
 }
 
-module.exports = { DEFAULT_TIME_ZONES, TIME_ZONE_OPTIONS, FIXED_HOLIDAYS, normalizeCalendarViewMode, normalizeTimeZones, normalizeAnniversaries, formatTimeZone, holidaysForDate, dateDifference, convertUnit };
+module.exports = { DEFAULT_TIME_ZONES, TIME_ZONE_OPTIONS, FIXED_HOLIDAYS, normalizeCalendarViewMode, normalizeTimeZones, normalizeAnniversaries, formatTimeZone, holidaysForDate, dateDifference, dateDifferenceMinutes, formatDateDifference, convertUnit };

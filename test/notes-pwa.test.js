@@ -6,7 +6,7 @@ const os = require('os');
 const path = require('path');
 const test = require('node:test');
 const { NotesStore, normalizePayload } = require('../src/main/notes-store');
-const { findInstalledPwaShortcut, normalizePwaConfig, openPwa } = require('../src/main/pwa-launcher');
+const { findInstalledPwaShortcut, normalizePwaConfig, openPwa, matchesInstalledPwaCommand } = require('../src/main/pwa-launcher');
 const noteHtml = fs.readFileSync(path.join(__dirname, '..', 'note.html'), 'utf8');
 
 test('notes store skips malformed notes and persists atomically', () => {
@@ -133,4 +133,12 @@ test('installed PWA launch uses the owning browser instead of the default browse
   assert.equal(result.installed, true);
   assert.deepEqual(launchedCommand, { file: installed.file, args: installed.args });
   assert.equal(fallbackUrl, null);
+});
+
+test('PWA window matching never reuses a regular browser tab with a matching title', () => {
+  const installed = { appId: 'target-app', processName: 'browser' };
+  assert.equal(matchesInstalledPwaCommand('browser.exe --profile-directory=Default https://ai.forcome.com', installed), false);
+  assert.equal(matchesInstalledPwaCommand('browser.exe --profile-directory=Default --app-id=other-app', installed), false);
+  assert.equal(matchesInstalledPwaCommand('browser.exe --profile-directory=Default --app-id=target-app', installed), true);
+  assert.equal(matchesInstalledPwaCommand('browser.exe --profile-directory=Default --app=https://ai.forcome.com/', { appUrl: 'https://ai.forcome.com/' }), true);
 });

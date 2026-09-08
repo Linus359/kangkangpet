@@ -2,7 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { convertUnit, dateDifference, formatTimeZone, holidaysForDate, normalizeAnniversaries, normalizeCalendarViewMode, normalizeTimeZones } = require('../src/main/productivity-tools');
+const { convertUnit, dateDifference, dateDifferenceMinutes, formatDateDifference, formatTimeZone, holidaysForDate, normalizeAnniversaries, normalizeCalendarViewMode, normalizeTimeZones } = require('../src/main/productivity-tools');
 
 test('time zone configuration stays local, deduplicated, and displayable', () => {
   assert.deepEqual(normalizeTimeZones(['Asia/Shanghai', 'Asia/Shanghai', 'invalid']), ['Asia/Shanghai']);
@@ -22,6 +22,9 @@ test('calculator only converts compatible units and calculates calendar days', (
   assert.equal(convertUnit(10, 'cm', 'in').toFixed(3), '3.937');
   assert.equal(convertUnit(1, 'mi', 'cm'), null);
   assert.equal(dateDifference('2026-01-01', '2026-01-11'), 10);
+  assert.equal(dateDifferenceMinutes('2026-09-08T08:15', '2026-09-09T10:45'), 1590);
+  assert.equal(formatDateDifference('2026-09-08T08:15', '2026-09-09T10:45'), '1 天 2 小时 30 分钟');
+  assert.equal(formatDateDifference('2026-09-09T10:45', '2026-09-08T08:15'), '-1 天 2 小时 30 分钟');
 });
 
 test('home calendar view mode is normalized for persisted preferences', () => {

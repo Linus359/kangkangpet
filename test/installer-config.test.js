@@ -8,6 +8,8 @@ const assert = require('node:assert/strict');
 const root = path.join(__dirname, '..');
 const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const installer = fs.readFileSync(path.join(root, 'build', 'installer.nsh'), 'utf8');
+const legacyCleanupBytes = fs.readFileSync(path.join(root, 'build', 'cleanup-legacy-cli.ps1'));
+const legacyCleanup = legacyCleanupBytes.toString('utf8');
 
 test('packages only required Windows x64 runtime files with maximum compression', () => {
   const build = packageJson.build;
@@ -33,7 +35,7 @@ test('packages only required Windows x64 runtime files with maximum compression'
   assert.ok(!build.asarUnpack.includes('assets/cat/**'));
 });
 
-test('uses a standard per-user installer and preserves application data', () => {
+test('uses a standard per-user installer, removes legacy standalone CLIs, and preserves application data', () => {
   const nsis = packageJson.build.nsis;
   assert.equal(nsis.oneClick, false);
   assert.equal(nsis.allowToChangeInstallationDirectory, true);
@@ -43,6 +45,20 @@ test('uses a standard per-user installer and preserves application data', () => 
   assert.equal(nsis.menuCategory, '康康熊桌宠');
   assert.equal(nsis.runAfterFinish, true);
   assert.equal(nsis.deleteAppDataOnUninstall, false);
+  assert.match(installer, /!macro customCheckAppRunning/);
+  assert.doesNotMatch(installer, /!macro customInit/);
+  assert.match(installer, /cleanup-legacy-cli\.ps1/);
+  assert.match(installer, /正在退出程序并清理旧版 FORCOME AI CLI/);
+  assert.match(installer, /inside the install section/);
+  assert.match(installer, /legacyCliCleanupDone/);
+  assert.deepEqual([...legacyCleanupBytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
+  assert.match(legacyCleanup, /ForcomeAI-Connector/);
+  assert.match(legacyCleanup, /ForcomeAI-Tray/);
+  assert.match(legacyCleanup, /npm\.cmd/);
+  assert.match(legacyCleanup, /@forcome\[\\\\\/\]ai-cli/);
+  assert.match(legacyCleanup, /ForcomeAI\\cli/);
+  assert.match(legacyCleanup, /保留 \.lobehub 登录凭据/);
+  assert.doesNotMatch(legacyCleanup, /Remove-Item[^\n]+credentials\.json/i);
   assert.match(installer, /Preserving local reminder, calendar, note, and settings data in AppData/);
-  assert.doesNotMatch(installer, /taskkill|KangKangSelectDefaultInstallDrive|Get-PSDrive|MUI_PAGE_DIRECTORY|CreateShortCut|RMDir/);
+  assert.doesNotMatch(installer, /KangKangSelectDefaultInstallDrive|Get-PSDrive|MUI_PAGE_DIRECTORY|CreateShortCut|RMDir/);
 });

@@ -20,6 +20,7 @@ const required = [
   'src/main/pwa-launcher.js',
   'src/main/forcome-cli.js',
   'src/main/holiday-service.js',
+  'src/main/us-holiday-service.js',
   'assets/cat',
   'dist/cli/runtime/node.exe',
   'dist/cli/cli/node_modules/@forcome/ai-cli/bin/fai.js',
@@ -46,7 +47,7 @@ if (panel.includes('小方块') || panel.includes('长条') || panel.includes('�
   console.error('Smoke check failed. Calendar view labels must remain 年/月/周/日.');
   process.exit(1);
 }
-if (!panel.includes('中国法定节假日') || !panel.includes('调休补班') || panel.includes('国家 / 地区（可多选）')) {
+if (!panel.includes('中国法定节假日') || !panel.includes('调休补班') || !panel.includes('美国联邦节假日') || panel.includes('国家 / 地区（可多选）')) {
   console.error('Smoke check failed. Calendar must use the simplified official China holiday schedule.');
   process.exit(1);
 }
