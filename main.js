@@ -20,6 +20,7 @@ const { ReminderScheduler } = require('./src/main/reminder-scheduler');
 const { applyReminderBulkAction, mergeImportedReminders, normalizeReminders, normalizeSource, sortReminders, validateReminder } = require('./src/main/reminders');
 const { DEFAULT_PET_SIZE, MAX_PET_SIZE, MIN_PET_SIZE, chooseDefaultAsset, clampPetPosition, defaultPetPosition, getPetBounds: calculatePetBounds, normalizePetSize } = require('./src/main/pet-layout');
 const { ForcomeCliManager, resolveForcomeCliPaths } = require('./src/main/forcome-cli');
+const { ensureWindowBoundsVisible } = require('./src/main/window-layout');
 
 // The app does not render WebGPU content. Keeping Chromium on the D3D11/ANGLE path
 // lets packaged builds omit the optional D3D12 WebGPU and Vulkan fallback binaries.
@@ -460,6 +461,24 @@ function ensureStorage() {
   usHolidayService = new USHolidayService({ cachePath: path.join(userData, 'us-holiday-cache.json'), log: writeLog });
 }
 
+function visiblePanelBounds(bounds) {
+  const normalized = normalizeBounds(bounds) || { width: 1040, height: 780 };
+  const displays = screen.getAllDisplays();
+  const primaryWorkArea = screen.getPrimaryDisplay().workArea;
+  return ensureWindowBoundsVisible(normalized, displays, primaryWorkArea);
+}
+
+function restorePanelToVisibleArea() {
+  if (!panelWindow || panelWindow.isDestroyed()) return;
+  const current = panelWindow.getBounds();
+  const visible = visiblePanelBounds(current);
+  if (current.x === visible.x && current.y === visible.y && current.width === visible.width && current.height === visible.height) return;
+  panelWindow.setBounds(visible);
+  config.panelBounds = visible;
+  saveConfigSoon();
+  writeLog(`控制面板原位置不在当前屏幕内，已移回主屏：${visible.x},${visible.y} ${visible.width}x${visible.height}。`);
+}
+
 function bundledAssetsDir() {
   const unpacked = path.join(process.resourcesPath || '', 'app.asar.unpacked', 'assets', ASSET_DIR_NAME);
   return fs.existsSync(unpacked) ? unpacked : path.join(__dirname, 'assets', ASSET_DIR_NAME);
@@ -722,12 +741,18 @@ function createPetWindow() {
 function createPanelWindow(tab = null) {
   writeLog(`正在创建控制面板窗口${tab ? `（${tab}）` : ''}。`);
   if (panelWindow && !panelWindow.isDestroyed()) {
+    restorePanelToVisibleArea();
     panelWindow.show();
     panelWindow.focus();
     if (tab) panelWindow.webContents.send('panel:open-tab', tab);
     return panelWindow;
   }
-  const bounds = config.panelBounds || { width: 1040, height: 780 };
+  const bounds = visiblePanelBounds(config.panelBounds);
+  if (config.panelBounds && (bounds.x !== config.panelBounds.x || bounds.y !== config.panelBounds.y || bounds.width !== config.panelBounds.width || bounds.height !== config.panelBounds.height)) {
+    config.panelBounds = bounds;
+    saveConfigSoon();
+    writeLog(`控制面板保存位置不在当前屏幕内，已移回主屏：${bounds.x},${bounds.y} ${bounds.width}x${bounds.height}。`);
+  }
   panelWindow = new BrowserWindow({
     ...bounds,
     show: true,
@@ -1648,6 +1673,8 @@ if (!app.requestSingleInstanceLock()) {
     powerMonitor.on('lock-screen', () => petWindow?.webContents.send('pet:performance-suspend', true));
     powerMonitor.on('suspend', () => petWindow?.webContents.send('pet:performance-suspend', true));
     powerMonitor.on('unlock-screen', () => { scheduler?.reschedule('unlock'); petWindow?.webContents.send('pet:performance-suspend', false); maintainForcomeConnector({ immediate: true }).catch((error) => writeLog('解锁后重连 FORCOME AI 失败。', error)); });
+    screen.on('display-removed', restorePanelToVisibleArea);
+    screen.on('display-metrics-changed', restorePanelToVisibleArea);
     writeLog('应用启动完成。');
   }).catch((error) => { writeLog('应用启动失败。', error); throw error; });
 }
