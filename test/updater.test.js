@@ -29,6 +29,9 @@ test('checks packaged installs for updates without affecting development', () =>
   assert.match(mainSource, /autoUpdater\.autoDownload = false;/);
   assert.match(mainSource, /autoUpdater\.disableDifferentialDownload = false;/);
   assert.match(mainSource, /autoUpdater\.on\('download-progress'/);
+  assert.match(mainSource, /bytesPerSecond/);
+  assert.match(mainSource, /transferred/);
+  assert.match(mainSource, /total/);
   assert.match(mainSource, /promptAndDownloadUpdate\(info\)/);
   assert.match(mainSource, /autoUpdater\.downloadUpdate\(\)/);
   assert.match(mainSource, /autoUpdater\.quitAndInstall\(true, true\)/);
@@ -48,6 +51,10 @@ test('exposes app version and manual update status to the settings panel', () =>
   assert.match(panelSource, /id="appVersion"/);
   assert.match(panelSource, /id="checkUpdates"/);
   assert.match(panelSource, /api\.checkForUpdates\(\)/);
+  assert.match(panelSource, /id="updateProgress"/);
+  assert.match(panelSource, /id="updateProgressBar"/);
+  assert.match(panelSource, /id="updateProgressPercent"/);
+  assert.match(panelSource, /正在退出并安装，完成后自动重启/);
 });
 
 test('keeps calendar creation in a date-triggered modal and provides an import template', () => {

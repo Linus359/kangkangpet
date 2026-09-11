@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "hr-confirmed-2026-09",
+  "reminders": [
+    {
+      "ruleKey": "workday-start",
+      "time": "09:00",
+      "weekdays": [0, 1, 2, 3, 4],
+      "title": "☀️ 上班前提醒",
+      "message": "早上好！①公司上班时间9:00-18:00，午休12:00-13:00，无需打卡；②出差/外出/请假请提前在钉钉完成审批；③进出佩戴胸卡；④着装符合商业休闲要求；⑤注意信息安全保密。祝工作顺利！",
+      "enabled": true
+    },
+    {
+      "ruleKey": "workday-afternoon",
+      "time": "14:00",
+      "weekdays": [0, 1, 2, 3, 4],
+      "title": "☕ 下午提醒",
+      "message": "午餐小贴士：①按排队顺序从1号桌依次入座；②取餐使用公筷公勺，勿在饭菜区大声交谈；③餐后清理桌面、归位座椅，垃圾干湿分离；④外卖垃圾请拿至108号仓库门口垃圾桶。提倡光盘行动！",
+      "enabled": true
+    },
+    {
+      "ruleKey": "workday-end",
+      "time": "18:00",
+      "weekdays": [0, 1, 2, 3, 4],
+      "title": "🌙 下班前提醒",
+      "message": "辛苦了！下班前记得：①整理工位、保存文件、关闭设备；②值日生检查并关闭公共区域照明、空调、电风扇及会议室大屏；③离开时注意门窗、卷帘门安全；④如需晚餐请提前在午餐时段向食堂登记。明天见！",
+      "enabled": true
+    },
+    {
+      "ruleKey": "tip_lunch_norm",
+      "time": "12:25",
+      "weekdays": [0, 1, 2, 3, 4],
+      "title": "午餐规范小贴士",
+      "message": "取餐时按秩序排队，使用公筷公勺；用餐后清理桌面并归位座椅，外卖垃圾带到指定垃圾桶。",
+      "enabled": true
+    },
+    {
+      "ruleKey": "tip_security",
+      "time": "14:30",
+      "weekdays": [0, 1, 2, 3, 4],
+      "title": "信息安全小贴士",
+      "message": "离开工位前锁定电脑，敏感文件按规定保存和传递，不在公共场合谈论未公开信息。",
+      "enabled": true
+    },
+    {
+      "ruleKey": "tip_desk_clean",
+      "time": "17:00",
+      "weekdays": [0, 1, 2, 3, 4],
+      "title": "工位整理小贴士",
+      "message": "下班前整理工位、收好文件和个人物品，确认设备与公共区域用电安全。",
+      "enabled": true
+    },
+    {
+      "ruleKey": "tip_new_staff_checklist",
+      "time": "10:30",
+      "weekdays": [0, 1, 2, 3, 4],
+      "title": "新员工入职小贴士",
+      "message": "入职前三个月请及时熟悉考勤、请假、报销、信息安全和公共区域规范，不确定时先向直属负责人确认。",
+      "enabled": true
+    },
+    {
+      "ruleKey": "tip_approval_before_out",
+      "time": "10:50",
+      "weekdays": [0, 1, 2, 3, 4],
+      "title": "审批提醒",
+      "message": "出差、外出或请假前，请提前在钉钉完成审批，便于工作安排与后续报销核对。",
+      "enabled": true
+    },
+    {
+      "ruleKey": "tip_badge_access",
+      "time": "11:15",
+      "weekdays": [0, 1, 2, 3, 4],
+      "title": "胸卡佩戴小贴士",
+      "message": "进出办公区域请佩戴胸卡；发现门禁或访客异常时，及时向行政或直属负责人反馈。",
+      "enabled": true
+    },
+    {
+      "ruleKey": "tip_meeting_room_close",
+      "time": "16:20",
+      "weekdays": [0, 1, 2, 3, 4],
+      "title": "公共区域小贴士",
+      "message": "离开会议室或公共区域时，确认照明、空调、电风扇和会议大屏已按规定关闭。",
+      "enabled": true
+    },
+    {
+      "ruleKey": "tip_dinner_registration",
+      "time": "17:25",
+      "weekdays": [0, 1, 2, 3, 4],
+      "title": "晚餐登记小贴士",
+      "message": "如需晚餐，请在午餐时段提前向食堂登记，减少临时统计和食材浪费。",
+      "enabled": true
+    }
+  ],
+  "warnings": []
+}
