@@ -95,6 +95,7 @@ const defaultConfig = {
   cliAutoReconnect: true,
   petLowResourceMode: true,
   doNotDisturbMode: false,
+  workModeEnabled: true,
   timeZones: DEFAULT_TIME_ZONES,
   anniversaries: [],
   chinaHolidayEnabled: true,
@@ -442,13 +443,14 @@ function normalizeReminderDrafts(items) {
 function normalizeConfig(raw) {
   const next = { ...defaultConfig, ...(raw && typeof raw === 'object' ? raw : {}) };
   const legacyDefaultSize = Number(next.configVersion || 0) < 3 && Number(next.size) === 260;
-  next.configVersion = 8;
+  next.configVersion = 9;
   next.reminderFeatureVersion = 4;
   next.size = normalizePetSize(legacyDefaultSize ? DEFAULT_PET_SIZE : next.size);
   next.autoLaunch = next.autoLaunch === true;
   next.cliAutoReconnect = next.cliAutoReconnect !== false;
   next.petLowResourceMode = next.petLowResourceMode !== false;
   next.doNotDisturbMode = next.doNotDisturbMode === true;
+  next.workModeEnabled = next.workModeEnabled !== false;
   delete next.tapFeedbackEnabled;
   next.timeZones = normalizeTimeZones(next.timeZones);
   next.anniversaries = normalizeAnniversaries(next.anniversaries);
@@ -1003,6 +1005,15 @@ function handbookSprinkleCandidates(now) {
   return handbookTipPool(now).filter((rule) => !employeePolicySprinkleTriggered.has(rule.ruleKey));
 }
 
+function handbookPolicyPool(now, requireCurrentWeekday = true) {
+  if (!employeePolicyPaths) return [];
+  let effective;
+  try { effective = effectiveEmployeePolicy(); } catch { return []; }
+  const day = handbookWeekdayIndex(now);
+  return (Array.isArray(effective.policy.reminders) ? effective.policy.reminders : [])
+    .filter((rule) => rule?.enabled === true && (!requireCurrentWeekday || (Array.isArray(rule.weekdays) && rule.weekdays.includes(day))));
+}
+
 async function notifyHandbookTip(rule, { replay = false } = {}) {
   if (!rule) return;
   if (!replay) recordHandbookTip(rule);
@@ -1020,22 +1031,35 @@ async function notifyHandbookTip(rule, { replay = false } = {}) {
 }
 
 async function triggerHandbookTipManually() {
-  if (!config?.employeePolicy?.enabled || config.employeePolicy.sprinkleEnabled === false) return;
+  if (!config?.employeePolicy?.enabled || config.employeePolicy.sprinkleEnabled === false) return { ok: false };
   const now = new Date();
   resetHandbookSprinkleDay(now);
   const unseen = handbookSprinkleCandidates(now);
   const candidates = unseen.length ? unseen : handbookTipPool(now, false);
-  if (!candidates.length) return;
+  if (!candidates.length) return { ok: false };
   const rule = candidates[Math.floor(Math.random() * candidates.length)];
   employeePolicySprinkleTriggered.add(rule.ruleKey);
   await notifyHandbookTip(rule);
   scheduleHandbookSprinkle();
+  return { ok: true, ruleKey: rule.ruleKey };
 }
 
-function replayHandbookTip(entry) {
+async function triggerHandbookPolicyTip() {
+  if (!config?.employeePolicy?.enabled) return { ok: false };
+  const now = new Date();
+  const todayCandidates = handbookPolicyPool(now);
+  const candidates = todayCandidates.length ? todayCandidates : handbookPolicyPool(now, false);
+  if (!candidates.length) return { ok: false };
+  const rule = candidates[Math.floor(Math.random() * candidates.length)];
+  await notifyHandbookTip(rule);
+  return { ok: true, ruleKey: rule.ruleKey };
+}
+
+async function replayHandbookTip(entry) {
   const tip = normalizeHandbookRecentTip(entry);
-  if (!tip) return;
-  notifyHandbookTip(tip, { replay: true }).catch((error) => writeLog('继续阅读员工守则小贴士失败。', error));
+  if (!tip) return { ok: false };
+  await notifyHandbookTip(tip, { replay: true });
+  return { ok: true, ruleKey: tip.ruleKey };
 }
 
 function handbookTipMenuTemplate() {
@@ -1043,10 +1067,10 @@ function handbookTipMenuTemplate() {
   const available = config?.employeePolicy?.enabled && config.employeePolicy.sprinkleEnabled !== false && handbookTipPool(new Date(), false).length > 0;
   const items = [
     { label: '随机来一条小贴士', enabled: available, click: () => triggerHandbookTipManually().catch((error) => writeLog('手动触发员工守则小贴士失败。', error)) },
-    { label: '继续阅读上一条', enabled: recentTips.length > 0, click: () => replayHandbookTip(recentTips[0]) }
+    { label: '继续阅读上一条', enabled: recentTips.length > 0, click: () => replayHandbookTip(recentTips[0]).catch((error) => writeLog('继续阅读员工守则小贴士失败。', error)) }
   ];
   if (recentTips.length) {
-    items.push({ label: '最近小贴士', submenu: recentTips.map((tip) => ({ label: (tip.title || tip.message).slice(0, 36), click: () => replayHandbookTip(tip) })) });
+    items.push({ label: '最近小贴士', submenu: recentTips.map((tip) => ({ label: (tip.title || tip.message).slice(0, 36), click: () => replayHandbookTip(tip).catch((error) => writeLog('继续阅读员工守则小贴士失败。', error)) })) });
   }
   return { label: '员工守则小贴士', submenu: items };
 }
@@ -1950,6 +1974,13 @@ function openConfiguredPwa() {
   return pwaOpenPromise;
 }
 
+function toggleWorkMode() {
+  config.workModeEnabled = config.workModeEnabled === false;
+  saveConfigSoon();
+  broadcastConfig();
+  return { ok: true, workModeEnabled: config.workModeEnabled };
+}
+
 function setupIpc() {
   ipcMain.handle('app:get-info', () => ({ version: app.getVersion(), isPackaged: app.isPackaged, updater: publicUpdaterState() }));
   ipcMain.handle('app:check-for-updates', () => checkForUpdates());
@@ -1972,6 +2003,10 @@ function setupIpc() {
   ipcMain.handle('assets:delete', (_event, assetId) => deleteAsset(assetId));
   ipcMain.handle('panel:open', (_event, tab) => { createPanelWindow(typeof tab === 'string' ? tab : null); return true; });
   ipcMain.handle('quick-reminder:open', () => { createQuickReminderWindow(); return true; });
+  ipcMain.handle('pet:toggle-work-mode', () => toggleWorkMode());
+  ipcMain.handle('pet:show-handbook-tip', () => triggerHandbookTipManually());
+  ipcMain.handle('pet:show-policy-tip', () => triggerHandbookPolicyTip());
+  ipcMain.handle('pet:replay-handbook-tip', () => replayHandbookTip(employeePolicyReadingState.recentTips[0]));
   ipcMain.handle('quick-reminder:close', () => { quickReminderWindow?.close(); return true; });
   ipcMain.handle('quick-reminder:save', (_event, reminder) => {
     const result = saveReminder(reminder);

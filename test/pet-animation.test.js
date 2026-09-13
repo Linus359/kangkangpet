@@ -87,7 +87,7 @@ test('opened interaction menus retain their original vertical position and reser
   assert.match(petHtml, /scheduleMenuLayoutUpdate\(\);/);
 });
 
-test('interaction controls fade in place with three primary icons and nested actions', () => {
+test('work mode turns pet interactions into handbook tip controls by default', () => {
   const buttonsStyle = petHtml.match(/#buttons \{([^}]*)\}/)?.[1] || '';
   assert.match(buttonsStyle, /opacity: 0;/);
   assert.match(buttonsStyle, /visibility: hidden;/);
@@ -100,10 +100,17 @@ test('interaction controls fade in place with three primary icons and nested act
   assert.match(petHtml, /function renderInteractionMenus\(\)/);
   assert.match(petHtml, /let interactionMenuSignature = '';/);
   assert.match(petHtml, /if \(nextMenuSignature !== interactionMenuSignature\) \{[\s\S]*?renderInteractionMenus\(\);/);
-  assert.match(petHtml, /createMenuGroup\('🧸', '陪康康玩'\)/);
-  assert.match(petHtml, /createMenuGroup\('💼', '专注工作'\)/);
+  assert.match(petHtml, /const workModeEnabled = config\?\.workModeEnabled !== false;/);
+  assert.match(petHtml, /createMenuGroup\(workModeEnabled \? '💡' : '🧸', workModeEnabled \? '员工守则小贴士' : '陪康康玩'\)/);
+  assert.match(petHtml, /createMenuGroup\('💼', '工作模式'\)/);
+  assert.match(petHtml, /'随机来一条小贴士'/);
+  assert.match(petHtml, /'今日员工守则'/);
+  assert.match(petHtml, /'继续阅读上一条'/);
+  assert.match(petHtml, /config\?\.workModeEnabled !== false \? '休息一下' : '开始工作'/);
+  assert.match(petHtml, /await desktopPetApi\.showPolicyTip\(\)/);
+  assert.match(petHtml, /suppressIdleMessage: true/);
   assert.match(petHtml, /interactionButtons\.filter\(\(item\) => item\.id !== 'work'\)/);
-  assert.match(petHtml, /const workInteraction = interactionButtons\.find\(\(item\) => item\.id === 'work'\);/);
+  assert.match(petHtml, /await desktopPetApi\.toggleWorkMode\(\)/);
   assert.match(petHtml, /'快速新建提醒'/);
   assert.match(petHtml, /'打开提醒管理'/);
   assert.match(petHtml, /settings-button/);

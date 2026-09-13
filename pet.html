@@ -984,7 +984,7 @@
 
       if (Math.random() < (options.interaction ? 0.45 : 0.24)) {
         const idleText = actionMessage(actionKey);
-        if (idleText && !options.message) {
+        if (idleText && !options.message && !options.suppressIdleMessage) {
           setTimeout(() => showMessage(idleText), randomBetween(500, 1500));
         }
       }
@@ -995,7 +995,7 @@
       scheduleIdle(duration);
     }
 
-    function interact(source) {
+    async function interact(source) {
       if (config?.doNotDisturbMode) return;
       const button = typeof source === 'object' && source ? source : null;
       const buttonAssets = assetsForButton(button);
@@ -1003,9 +1003,14 @@
       const selectedAsset = buttonAssets.length ? pick(freshButtonAssets.length ? freshButtonAssets : buttonAssets, null) : null;
       const actionKeys = button?.actionKeys?.length ? button.actionKeys : ['rub', 'greet', 'look'];
       const selectedAction = selectedAsset?.actionKey || pick(actionKeys, 'look');
+      idleRoutine = makeRoutine(['play', 'hunt', 'walk', 'sharpen', 'defensive'].includes(selectedAction) ? 'coolDown' : 'groomCycle');
+      if (config?.workModeEnabled !== false) {
+        playAction(selectedAction, { asset: selectedAsset, animate: true, interaction: true, suppressIdleMessage: true });
+        await desktopPetApi.showPolicyTip();
+        return;
+      }
       const responses = button?.responses?.length ? button.responses : config?.responses;
       const text = pick(responses, '喵。');
-      idleRoutine = makeRoutine(['play', 'hunt', 'walk', 'sharpen', 'defensive'].includes(selectedAction) ? 'coolDown' : 'groomCycle');
       playAction(selectedAction, { asset: selectedAsset, message: text, animate: true, interaction: true });
     }
 
@@ -1014,9 +1019,10 @@
         pat: { icon: '🤚', label: '抚摸康康熊' },
         call: { icon: '💬', label: '呼唤康康熊' },
         feed: { icon: '🍎', label: '投喂康康熊' },
-        work: { icon: '💼', label: '专注工作' }
+        work: { icon: '💼', label: config?.workModeEnabled !== false ? '休息一下' : '开始工作' }
       };
       const preset = presets[item.id];
+      if (item.id === 'work') return preset;
       return { icon: preset?.icon || '✦', label: item.label || preset?.label || '互动' };
     }
 
@@ -1360,7 +1366,7 @@
 
       updateBubbleAnchor();
 
-      const nextMenuSignature = JSON.stringify([config.doNotDisturbMode === true, (config.interactionButtons || []).map((item) => [item.id, item.label, item.actionKeys, item.responses])]);
+      const nextMenuSignature = JSON.stringify([config.doNotDisturbMode === true, config.workModeEnabled !== false, (config.interactionButtons || []).map((item) => [item.id, item.label, item.actionKeys, item.responses])]);
       if (nextMenuSignature !== interactionMenuSignature) {
         renderInteractionMenus();
         interactionMenuSignature = nextMenuSignature;
@@ -1435,24 +1441,54 @@
       return item;
     }
 
+    async function toggleWorkMode() {
+      const result = await desktopPetApi.toggleWorkMode();
+      const actionKey = result?.workModeEnabled === false ? 'sleep' : 'work';
+      playAction(actionKey, { animate: true, interaction: true, suppressIdleMessage: true });
+    }
+
+    async function showHandbookTip() {
+      playAction('think', { animate: true, interaction: true, suppressIdleMessage: true });
+      await desktopPetApi.showHandbookTip();
+    }
+
+    async function showPolicyTip() {
+      playAction('work', { animate: true, interaction: true, suppressIdleMessage: true });
+      await desktopPetApi.showPolicyTip();
+    }
+
+    async function replayHandbookTip() {
+      playAction('think', { animate: true, interaction: true, suppressIdleMessage: true });
+      await desktopPetApi.replayHandbookTip();
+    }
+
     function renderInteractionMenus() {
       buttons.innerHTML = '';
       buttons.hidden = config?.doNotDisturbMode === true;
       if (buttons.hidden) return;
       const interactionButtons = config.interactionButtons || [];
 
-      const playMenu = createMenuGroup('🧸', '陪康康玩');
-      for (const interaction of interactionButtons.filter((item) => item.id !== 'work')) {
-        const presentation = interactionButtonPresentation(interaction);
-        playMenu.menu.appendChild(createMenuItem(presentation.icon, presentation.label, () => interact(interaction)));
+      const workModeEnabled = config?.workModeEnabled !== false;
+      const playMenu = createMenuGroup(workModeEnabled ? '💡' : '🧸', workModeEnabled ? '员工守则小贴士' : '陪康康玩');
+      if (workModeEnabled) {
+        playMenu.menu.append(
+          createMenuItem('💡', '随机来一条小贴士', showHandbookTip),
+          createMenuItem('📋', '今日员工守则', showPolicyTip),
+          createMenuItem('📖', '继续阅读上一条', replayHandbookTip)
+        );
+      } else {
+        for (const interaction of interactionButtons.filter((item) => item.id !== 'work')) {
+          const presentation = interactionButtonPresentation(interaction);
+          playMenu.menu.appendChild(createMenuItem(presentation.icon, presentation.label, () => interact(interaction)));
+        }
       }
       buttons.appendChild(playMenu.group);
 
-      const workMenu = createMenuGroup('💼', '专注工作');
+      const workMenu = createMenuGroup('💼', '工作模式');
       const workInteraction = interactionButtons.find((item) => item.id === 'work');
       if (workInteraction) {
         const presentation = interactionButtonPresentation(workInteraction);
-        workMenu.menu.appendChild(createMenuItem(presentation.icon, presentation.label, () => interact(workInteraction)));
+        workMenu.menu.appendChild(createMenuItem(workModeEnabled ? '☕' : presentation.icon, presentation.label, toggleWorkMode));
       }
       workMenu.menu.append(
         createMenuItem('➕', '快速新建提醒', () => desktopPetApi.openQuickReminder()),

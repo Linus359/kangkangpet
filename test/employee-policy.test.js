@@ -134,3 +134,15 @@ test('does not expose credentials in renderer-facing files', () => {
   assert.doesNotMatch(fs.readFileSync(path.join(root, 'preload', 'panel-preload.js'), 'utf8'), /employeePolicy|employee-policy|DIFY/);
   assert.match(fs.readFileSync(path.join(root, 'main.js'), 'utf8'), /reminders: rendererConfig\.reminders\.filter\(\(reminder\) => reminder\.managedBy !== EMPLOYEE_POLICY_MANAGER\)/);
 });
+
+test('keeps work-mode tip requests in the main process', () => {
+  const mainSource = fs.readFileSync(path.join(root, 'main.js'), 'utf8');
+  const petPreload = fs.readFileSync(path.join(root, 'preload', 'pet-preload.js'), 'utf8');
+  assert.match(mainSource, /workModeEnabled: true/);
+  assert.match(mainSource, /next\.workModeEnabled = next\.workModeEnabled !== false/);
+  assert.match(mainSource, /ipcMain\.handle\('pet:show-policy-tip', \(\) => triggerHandbookPolicyTip\(\)\)/);
+  assert.match(mainSource, /ipcMain\.handle\('pet:replay-handbook-tip', \(\) => replayHandbookTip\(employeePolicyReadingState\.recentTips\[0\]\)\)/);
+  assert.match(mainSource, /const todayCandidates = handbookPolicyPool\(now\);[\s\S]*?handbookPolicyPool\(now, false\)/);
+  assert.match(petPreload, /showPolicyTip: \(\) => ipcRenderer\.invoke\('pet:show-policy-tip'\)/);
+  assert.match(petPreload, /toggleWorkMode: \(\) => ipcRenderer\.invoke\('pet:toggle-work-mode'\)/);
+});
