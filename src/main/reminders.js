@@ -127,10 +127,6 @@ function normalizeReminder(input = {}, index = 0, now = new Date()) {
     notificationMode: normalizedNotificationMode(input.notificationMode || input.notify_mode),
     reminderOffsetMinutes: normalizeReminderOffset(input.reminderOffsetMinutes ?? input.reminder_offset_minutes),
     strongReminder: input.strongReminder === true || input.strong_reminder === true || input.persistent === true,
-    managedBy: input.managedBy === 'employee-policy' ? 'employee-policy' : null,
-    sourceRuleId: asString(input.sourceRuleId).slice(0, 64) || null,
-    sourceKind: ['dify', 'local', 'builtin'].includes(input.sourceKind) ? input.sourceKind : null,
-    sourceRevision: asString(input.sourceRevision).slice(0, 64) || null,
     source: normalizeSource(input.source || (input.sourceType ? input : null)),
     createdAt,
     updatedAt: parseIso(input.updatedAt)?.toISOString() || createdAt,
@@ -260,7 +256,6 @@ function mergeImportedReminders(existing, incoming, now = new Date()) {
   const accepted = [];
   const errors = [];
   for (const [index, item] of (Array.isArray(incoming) ? incoming : []).entries()) {
-    if (item?.managedBy === 'employee-policy') continue;
     const result = validateReminder(item, now);
     if (!result.valid) {
       errors.push({ index, errors: result.errors });
@@ -287,7 +282,7 @@ function applyReminderBulkAction(reminders, reminderIds, action, now = new Date(
   }
 
   if (action === 'delete') {
-    const next = current.filter((reminder) => reminder.managedBy === 'employee-policy' || !ids.has(reminder.id));
+    const next = current.filter((reminder) => !ids.has(reminder.id));
     return { reminders: sortReminders(next), affected: current.length - next.length };
   }
 
@@ -295,7 +290,7 @@ function applyReminderBulkAction(reminders, reminderIds, action, now = new Date(
   const updatedAt = now.toISOString();
   let affected = 0;
   const next = current.map((reminder) => {
-    if (reminder.managedBy === 'employee-policy' || !ids.has(reminder.id) || reminder.enabled === enabled) return reminder;
+    if (!ids.has(reminder.id) || reminder.enabled === enabled) return reminder;
     const updated = setNextTrigger({ ...reminder, enabled, updatedAt, nextTriggerAt: null }, now, true);
     if (enabled && !updated.nextTriggerAt) return reminder;
     affected += 1;

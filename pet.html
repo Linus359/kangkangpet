@@ -396,7 +396,6 @@
 
     let config = null;
     let bubbleTimer = null;
-    let bubbleDismissState = null;
     let reminderQueue = [];
     let reminderVisible = false;
     let idleTimer = null;
@@ -784,53 +783,22 @@
       }
     }
 
-    function clearBubbleDismissTimer() {
-      clearTimeout(bubbleTimer);
-      bubbleTimer = null;
-      bubbleDismissState = null;
-    }
-
-    function scheduleBubbleDismissTimer() {
-      const state = bubbleDismissState;
-      if (!state || state.paused) return;
-      state.deadline = Date.now() + state.remaining;
+    function startBubbleDismissTimer(transitionId, duration, isReminder) {
+      if (isReminder && reminderVisible && window.currentStrongReminder) return;
       bubbleTimer = setTimeout(() => {
-        if (state !== bubbleDismissState || state.transitionId !== bubbleTransitionId) return;
-        bubbleDismissState = null;
+        if (transitionId !== bubbleTransitionId) return;
         bubble.classList.remove('show');
         bubbleCollapseTimer = setTimeout(() => {
-          if (state.transitionId !== bubbleTransitionId) return;
+          if (transitionId !== bubbleTransitionId) return;
           bubble.classList.remove('reminder');
           bubbleLayoutReserved = false;
           updateWindowLayout(false);
-          if (state.isReminder) {
+          if (isReminder) {
             reminderVisible = false;
             showNextReminder();
           }
         }, BUBBLE_TRANSITION_MS);
-      }, state.remaining);
-    }
-
-    function pauseBubbleDismissTimer() {
-      const state = bubbleDismissState;
-      if (!state || state.paused) return;
-      clearTimeout(bubbleTimer);
-      state.remaining = Math.max(0, state.deadline - Date.now());
-      state.paused = true;
-    }
-
-    function resumeBubbleDismissTimer() {
-      const state = bubbleDismissState;
-      if (!state || !state.paused) return;
-      state.paused = false;
-      scheduleBubbleDismissTimer();
-    }
-
-    function startBubbleDismissTimer(transitionId, duration, isReminder) {
-      clearBubbleDismissTimer();
-      if (isReminder && reminderVisible && window.currentStrongReminder) return;
-      bubbleDismissState = { transitionId, isReminder, remaining: Math.max(0, duration), deadline: 0, paused: false };
-      scheduleBubbleDismissTimer();
+      }, duration);
     }
 
     function showMessage(text, duration = 3200, isReminder = false) {
@@ -838,7 +806,7 @@
       if (reminderVisible && !isReminder) return;
       const transitionId = ++bubbleTransitionId;
       const wasVisible = bubble.classList.contains('show');
-      clearBubbleDismissTimer();
+      clearTimeout(bubbleTimer);
       clearTimeout(bubbleCollapseTimer);
       if (bubbleRevealFrame) cancelAnimationFrame(bubbleRevealFrame);
       bubbleRevealFrame = null;
@@ -872,15 +840,8 @@
       reminderVisible = true;
       const reminder = reminderQueue.shift();
       window.currentStrongReminder = reminder.strongReminder === true;
-      reminderAcknowledge.textContent = typeof reminder.acknowledgeLabel === 'string' && reminder.acknowledgeLabel.trim() ? reminder.acknowledgeLabel.trim() : '确定';
       const text = [reminder.title, reminder.message].filter(Boolean).join('：') || '康康熊提醒你注意一件事。';
-      const requestedDuration = Number(reminder.bubbleDurationMs);
-      if (Number.isFinite(requestedDuration)) {
-        const duration = Math.max(1000, Math.min(60000, requestedDuration));
-        showMessage(text, window.currentStrongReminder ? 0 : duration, true);
-      } else {
-        showMessage(text, window.currentStrongReminder ? 0 : 9000, true);
-      }
+      showMessage(text, window.currentStrongReminder ? 0 : 9000, true);
     }
 
     reminderAcknowledge.addEventListener('click', (event) => {
@@ -889,7 +850,7 @@
       window.currentStrongReminder = false;
       reminderAcknowledge.classList.add('hidden');
       bubble.classList.remove('show');
-      clearBubbleDismissTimer();
+      clearTimeout(bubbleTimer);
       clearTimeout(bubbleCollapseTimer);
       bubbleCollapseTimer = setTimeout(() => {
         bubble.classList.remove('reminder');
@@ -899,9 +860,6 @@
         showNextReminder();
       }, BUBBLE_TRANSITION_MS);
     });
-
-    bubble.addEventListener('mouseenter', pauseBubbleDismissTimer);
-    bubble.addEventListener('mouseleave', resumeBubbleDismissTimer);
 
     function animatePet() {
       petMotion.classList.remove('bounce', 'wiggle');
@@ -1499,6 +1457,8 @@
       dragState = {
         startClientX: event.clientX,
         startClientY: event.clientY,
+        pendingDx: 0,
+        pendingDy: 0,
         moved: false
       };
     });
@@ -1535,23 +1495,23 @@
         dragState.moved = true;
         stage.classList.add('dragging');
         setClickThrough(false);
-        desktopPetApi.startDrag();
       }
 
-      desktopPetApi.moveDrag();
+      const moveX = event.movementX || 0;
+      const moveY = event.movementY || 0;
+      if (!moveX && !moveY) return;
+      desktopPetApi.moveBy({ dx: moveX, dy: moveY });
     });
 
     window.addEventListener('mouseup', (event) => {
       if (!dragState) return;
       suppressPetClick = dragState.moved;
-      if (dragState.moved) desktopPetApi.endDrag();
       dragState = null;
       stage.classList.remove('dragging');
       updateMouseHit(event);
     });
 
     window.addEventListener('blur', () => {
-      if (dragState?.moved) desktopPetApi.endDrag();
       dragState = null;
       lastPointerPosition = null;
       stage.classList.remove('dragging');

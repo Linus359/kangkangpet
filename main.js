@@ -21,17 +21,6 @@ const { applyReminderBulkAction, mergeImportedReminders, normalizeReminders, nor
 const { DEFAULT_PET_SIZE, MAX_PET_SIZE, MIN_PET_SIZE, chooseDefaultAsset, clampPetPosition, defaultPetPosition, getPetBounds: calculatePetBounds, normalizePetSize } = require('./src/main/pet-layout');
 const { ForcomeCliManager, resolveForcomeCliPaths } = require('./src/main/forcome-cli');
 const { ensureWindowBoundsVisible } = require('./src/main/window-layout');
-const {
-  DEFAULT_DIFY_BASE_URL,
-  DEFAULT_EMPLOYEE_POLICY_SETTINGS,
-  EMPLOYEE_POLICY_MANAGER,
-  loadEffectivePolicy,
-  mergeEmployeePolicyReminders,
-  normalizePolicySettings,
-  policyRevision,
-  syncDifyPolicy,
-  writeJsonAtomic
-} = require('./src/main/employee-policy');
 
 // The app does not render WebGPU content. Keeping Chromium on the D3D11/ANGLE path
 // lets packaged builds omit the optional D3D12 WebGPU and Vulkan fallback binaries.
@@ -99,23 +88,13 @@ const defaultConfig = {
   anniversaries: [],
   chinaHolidayEnabled: true,
   usHolidayEnabled: false,
-  calendarViewMode: 'month',
-  employeePolicy: DEFAULT_EMPLOYEE_POLICY_SETTINGS
+  calendarViewMode: 'month'
 };
 
 let config;
 let configPath;
 let mediaDir;
 let configStore;
-let employeePolicyPaths;
-let employeePolicyReadingStatePath;
-let employeePolicyReadingState = { recentTips: [] };
-let employeePolicyTimer = null;
-let employeePolicySyncPromise = null;
-let employeePolicyAbortController = null;
-let employeePolicySprinkleTimer = null;
-let employeePolicySprinkleDay = '';
-const employeePolicySprinkleTriggered = new Set();
 let notesStore;
 let notes = [];
 let logger;
@@ -140,16 +119,13 @@ let shutdownCleanupStarted = false;
 let shutdownCleanupComplete = false;
 let pendingPetLayout = null;
 let petLayoutScheduled = false;
-let petLayoutState = null;
-let petDragState = null;
-let petLayoutDeferredDuringDrag = false;
 let updaterConfigured = false;
 let updaterCheckPromise = null;
 let updaterDownloadPromise = null;
 let updaterPromptVersion = null;
 let updaterInstalling = false;
 let updaterShutdownPromise = null;
-let updaterState = { status: 'idle', version: null, message: '尚未检查更新。', percent: null, bytesPerSecond: 0, transferred: 0, total: 0 };
+let updaterState = { status: 'idle', version: null, message: '尚未检查更新。' };
 let forcomeStatus = { available: false, authenticated: false, connectorRunning: false, externalConnectorRunning: false };
 let forcomeSupervisorTimer = null;
 let forcomeReconnectAttempt = 0;
@@ -190,30 +166,27 @@ function configureAutoUpdater() {
   autoUpdater.autoRunAppAfterInstall = true;
   autoUpdater.disableDifferentialDownload = false;
   autoUpdater.disableWebInstaller = true;
-  autoUpdater.on('checking-for-update', () => setUpdaterState({ status: 'checking', message: '正在检查更新...', percent: null, bytesPerSecond: 0, transferred: 0, total: 0 }));
+  autoUpdater.on('checking-for-update', () => setUpdaterState({ status: 'checking', message: '正在检查更新...' }));
   autoUpdater.on('error', (error) => {
     updaterDownloadPromise = null;
     updaterPromptVersion = null;
-    setUpdaterState({ status: 'error', version: null, message: '更新失败，请稍后重试。', percent: null, bytesPerSecond: 0, transferred: 0, total: 0 });
+    setUpdaterState({ status: 'error', version: null, message: '更新失败，请稍后重试。' });
     writeLog('在线更新检查失败。', error);
   });
   autoUpdater.on('update-available', (info) => {
-    setUpdaterState({ status: 'awaiting-confirmation', version: info.version, message: `发现新版本 ${info.version}，等待确认下载。`, percent: 0, bytesPerSecond: 0, transferred: 0, total: 0 });
+    setUpdaterState({ status: 'awaiting-confirmation', version: info.version, message: `发现新版本 ${info.version}，等待确认下载。` });
     writeLog(`发现在线更新：${info.version}。`);
     promptAndDownloadUpdate(info).catch((error) => writeLog('更新确认流程失败。', error));
   });
-  autoUpdater.on('update-not-available', () => setUpdaterState({ status: 'latest', version: app.getVersion(), message: `当前已是最新版本（${app.getVersion()}）。`, percent: null, bytesPerSecond: 0, transferred: 0, total: 0 }));
+  autoUpdater.on('update-not-available', () => setUpdaterState({ status: 'latest', version: app.getVersion(), message: `当前已是最新版本（${app.getVersion()}）。` }));
   autoUpdater.on('download-progress', (progress) => {
     const percent = Number.isFinite(progress?.percent) ? Math.max(0, Math.min(100, progress.percent)) : null;
-    const bytesPerSecond = Number.isFinite(progress?.bytesPerSecond) ? Math.max(0, progress.bytesPerSecond) : 0;
-    const transferred = Number.isFinite(progress?.transferred) ? Math.max(0, progress.transferred) : 0;
-    const total = Number.isFinite(progress?.total) ? Math.max(0, progress.total) : 0;
-    const speed = bytesPerSecond > 0 ? ` · ${(bytesPerSecond / 1024 / 1024).toFixed(1)} MB/s` : '';
-    setUpdaterState({ status: 'downloading', percent, bytesPerSecond, transferred, total, message: percent == null ? '正在下载更新...' : `正在下载更新 ${percent.toFixed(0)}%${speed}` });
+    const speed = Number.isFinite(progress?.bytesPerSecond) && progress.bytesPerSecond > 0 ? ` · ${(progress.bytesPerSecond / 1024 / 1024).toFixed(1)} MB/s` : '';
+    setUpdaterState({ status: 'downloading', message: percent == null ? '正在下载更新...' : `正在下载更新 ${percent.toFixed(0)}%${speed}` });
   });
   autoUpdater.on('update-downloaded', (info) => {
     updaterDownloadPromise = null;
-    setUpdaterState({ status: 'installing', version: info.version, message: `新版本 ${info.version} 已下载，正在重启安装...`, percent: null, bytesPerSecond: 0, transferred: 0, total: 0 });
+    setUpdaterState({ status: 'installing', version: info.version, message: `新版本 ${info.version} 已下载，正在重启安装...` });
     writeLog(`在线更新已下载：${info.version}，准备自动重启安装。`);
     if (updaterInstalling) return;
     updaterInstalling = true;
@@ -250,15 +223,15 @@ async function promptAndDownloadUpdate(info) {
   const result = parent ? await dialog.showMessageBox(parent, options) : await dialog.showMessageBox(options);
   if (result.response !== 0) {
     updaterPromptVersion = null;
-    setUpdaterState({ status: 'deferred', version, message: `已暂缓更新 ${version}，可稍后点击“检查更新”。`, percent: null, bytesPerSecond: 0, transferred: 0, total: 0 });
+    setUpdaterState({ status: 'deferred', version, message: `已暂缓更新 ${version}，可稍后点击“检查更新”。` });
     writeLog(`用户暂缓在线更新：${version}。`);
     return { status: 'deferred', version };
   }
-  setUpdaterState({ status: 'downloading', version, message: '正在下载更新...', percent: 0, bytesPerSecond: 0, transferred: 0, total: 0 });
+  setUpdaterState({ status: 'downloading', version, message: '正在下载更新...' });
   updaterDownloadPromise = autoUpdater.downloadUpdate().catch((error) => {
     updaterDownloadPromise = null;
     updaterPromptVersion = null;
-    setUpdaterState({ status: 'error', version, message: '更新下载失败，请稍后重试。', percent: null, bytesPerSecond: 0, transferred: 0, total: 0 });
+    setUpdaterState({ status: 'error', version, message: '更新下载失败，请稍后重试。' });
     writeLog('在线更新下载失败。', error);
     return null;
   });
@@ -455,7 +428,6 @@ function normalizeConfig(raw) {
   next.usHolidayEnabled = next.usHolidayEnabled === true;
   delete next.holidaySettings;
   next.calendarViewMode = normalizeCalendarViewMode(next.calendarViewMode);
-  next.employeePolicy = normalizePolicySettings(next.employeePolicy);
   next.interactionButtons = normalizeButtons(next.interactionButtons);
   const buttonIds = new Set(next.interactionButtons.map((button) => button.id));
   next.assets = (Array.isArray(next.assets) ? next.assets : []).map((asset) => normalizeAsset(asset, buttonIds));
@@ -487,13 +459,6 @@ function ensureStorage() {
   notesStore = new NotesStore(path.join(userData, 'notes.json'), { log: writeLog });
   holidayService = new ChinaHolidayService({ cachePath: path.join(userData, 'china-holiday-cache.json'), log: writeLog });
   usHolidayService = new USHolidayService({ cachePath: path.join(userData, 'us-holiday-cache.json'), log: writeLog });
-  employeePolicyPaths = {
-    localPath: path.join(userData, 'employee-policy-local.json'),
-    cachePath: path.join(userData, 'employee-policy-cache.json'),
-    defaultsPath: path.join(__dirname, 'assets', 'config', 'employee-policy-defaults.json')
-  };
-  employeePolicyReadingStatePath = path.join(userData, 'employee-policy-reading-state.json');
-  loadHandbookReadingState();
 }
 
 function visiblePanelBounds(bounds) {
@@ -622,7 +587,6 @@ function loadConfig() {
   config = configStore.load(defaultConfig);
   notes = notesStore.load().notes.map(normalizeNotePosition).filter(Boolean);
   tryMigrateLegacyReminders();
-  applyStoredEmployeePolicy();
   seedBundledAssetsIfNeeded();
   migrateBundledAssetsToProcessed();
   saveConfigNow();
@@ -644,12 +608,11 @@ function saveConfigSoon() {
 }
 
 function publicConfig() {
-  const { employeePolicy: _employeePolicy, ...rendererConfig } = config;
   return {
-    ...rendererConfig,
-    pwa: { ...rendererConfig.pwa, launchCommand: null },
-    assets: rendererConfig.assets.map((asset) => ({ ...asset, fileUrl: asset.path && fs.existsSync(asset.path) ? pathToFileURL(asset.path).toString() : null })),
-    reminders: rendererConfig.reminders.filter((reminder) => reminder.managedBy !== EMPLOYEE_POLICY_MANAGER).map((reminder) => ({
+    ...config,
+    pwa: { ...config.pwa, launchCommand: null },
+    assets: config.assets.map((asset) => ({ ...asset, fileUrl: asset.path && fs.existsSync(asset.path) ? pathToFileURL(asset.path).toString() : null })),
+    reminders: config.reminders.map((reminder) => ({
       ...reminder,
       source: reminder.source
         ? { ...reminder.source, fileUrl: reminder.source.path && fs.existsSync(reminder.source.path) ? pathToFileURL(reminder.source.path).toString() : null }
@@ -688,32 +651,16 @@ function visiblePetPosition(position, bounds) {
   const displays = screen.getAllDisplays();
   const visible = position && displays.some(({ workArea }) => position.x + bounds.width > workArea.x + 24 && position.x < workArea.x + workArea.width - 24 && position.y + bounds.height > workArea.y + 24 && position.y < workArea.y + workArea.height - 24);
   if (visible) {
-    const display = screen.getDisplayNearestPoint({
-      x: position.x + Math.round(bounds.width / 2),
-      y: position.y + bounds.height
-    }) || screen.getPrimaryDisplay();
+    const display = displays.find(({ workArea }) => position.x >= workArea.x && position.x <= workArea.x + workArea.width && position.y >= workArea.y && position.y <= workArea.y + workArea.height) || screen.getPrimaryDisplay();
     return clampPetPosition(position, bounds, display.workArea);
   }
   const workArea = screen.getPrimaryDisplay().workArea;
   return defaultPetPosition(workArea, bounds);
 }
 
-function petLayoutPosition(current, bounds) {
-  const anchor = {
-    x: current.x + Math.round(current.width / 2),
-    y: current.y + current.height
-  };
-  const display = screen.getDisplayNearestPoint(anchor) || screen.getPrimaryDisplay();
-  return clampPetPosition({
-    x: anchor.x - Math.round(bounds.width / 2),
-    y: anchor.y - bounds.height
-  }, bounds, display.workArea);
-}
-
 function resizePetWindow() {
-  if (!petWindow || petWindow.isDestroyed() || petDragState) return;
-  const layout = petLayoutState;
-  const bounds = getPetBounds(layout?.bubble?.visible ? layout.bubble : null, layout?.assetId, layout?.menu);
+  if (!petWindow || petWindow.isDestroyed()) return;
+  const bounds = getPetBounds();
   const position = visiblePetPosition(config.position || petWindow.getBounds(), bounds);
   const current = petWindow.getBounds();
   const nextBounds = { ...position, ...bounds };
@@ -724,17 +671,12 @@ function resizePetWindow() {
 
 function applyPetLayout(layout) {
   if (!petWindow || petWindow.isDestroyed() || !layout || typeof layout !== 'object') return;
-  petLayoutState = layout;
-  if (petDragState) {
-    petLayoutDeferredDuringDrag = true;
-    return;
-  }
   const bubble = layout.bubble?.visible ? layout.bubble : null;
   const menu = layout.menu?.visible ? layout.menu : null;
   const bounds = getPetBounds(bubble, layout.assetId, menu);
   const current = petWindow.getBounds();
-  if (current.width === bounds.width && current.height === bounds.height) return;
-  const position = petLayoutPosition(current, bounds);
+  const oldBottom = current.y + current.height;
+  const position = visiblePetPosition({ x: current.x + Math.round((current.width - bounds.width) / 2), y: oldBottom - bounds.height }, bounds);
   const nextBounds = { ...position, width: bounds.width, height: bounds.height };
   config.position = position;
   if (current.x === nextBounds.x && current.y === nextBounds.y && current.width === nextBounds.width && current.height === nextBounds.height) return;
@@ -759,6 +701,7 @@ function broadcastConfig() {
   for (const win of [petWindow, panelWindow]) {
     if (win && !win.isDestroyed()) win.webContents.send('config:changed', payload);
   }
+  resizePetWindow();
 }
 
 function setPetClickThrough(ignore) {
@@ -790,7 +733,7 @@ function createPetWindow() {
   petWindow.loadFile('pet.html');
   petWindow.on('show', () => petWindow?.webContents.send('pet:visibility', true));
   petWindow.on('hide', () => petWindow?.webContents.send('pet:visibility', false));
-  petWindow.on('closed', () => { petWindow = null; petLayoutState = null; pendingPetLayout = null; });
+  petWindow.on('closed', () => { petWindow = null; });
   petWindow.webContents.on('render-process-gone', (_event, details) => writeLog(`桌宠渲染进程异常：${details.reason}`));
   return petWindow;
 }
@@ -860,301 +803,6 @@ function createQuickReminderWindow() {
   quickReminderWindow.loadFile('quick-reminder.html');
   quickReminderWindow.on('closed', () => { quickReminderWindow = null; });
   return quickReminderWindow;
-}
-
-function effectiveEmployeePolicy() {
-  return loadEffectivePolicy({ ...employeePolicyPaths, sourceMode: config.employeePolicy.sourceMode });
-}
-
-function applyStoredEmployeePolicy() {
-  const effective = effectiveEmployeePolicy();
-  const policy = {
-    ...effective.policy,
-    reminders: effective.policy.reminders.map((reminder) => ({ ...reminder, enabled: config.employeePolicy.enabled && reminder.enabled && !isHandbookSprinkleRule(reminder.ruleKey) }))
-  };
-  config.reminders = normalizeReminders(mergeEmployeePolicyReminders(config.reminders, policy, effective));
-  config.employeePolicy.currentSource = effective.sourceKind;
-  config.employeePolicy.currentPolicyVersion = effective.policy.policyVersion;
-  config.employeePolicy.errorCode = null;
-  scheduleHandbookSprinkle();
-}
-
-function saveEmployeePolicyStatus() {
-  saveConfigSoon();
-}
-
-const HANDBOOK_WORK_START_MINUTES = 9 * 60;
-const HANDBOOK_WORK_END_MINUTES = 18 * 60;
-const HANDBOOK_RECENT_TIP_LIMIT = 3;
-const HANDBOOK_MIN_BUBBLE_DURATION_MS = 12 * 1000;
-const HANDBOOK_MAX_BUBBLE_DURATION_MS = 20 * 1000;
-const EMPLOYEE_POLICY_SYNC_TIMEOUT_MS = 30 * 1000;
-
-function isHandbookSprinkleRule(ruleKey) {
-  return typeof ruleKey === 'string' && ruleKey.startsWith('tip_');
-}
-
-function normalizeHandbookRecentTip(value) {
-  if (!value || typeof value !== 'object') return null;
-  const ruleKey = typeof value.ruleKey === 'string' ? value.ruleKey.trim().slice(0, 120) : '';
-  if (!ruleKey) return null;
-  const title = typeof value.title === 'string' ? value.title.trim().slice(0, 160) : '';
-  const message = typeof value.message === 'string' ? value.message.trim().slice(0, 1200) : '';
-  if (!title && !message) return null;
-  return { ruleKey, title, message, shownAt: typeof value.shownAt === 'string' ? value.shownAt : null };
-}
-
-function loadHandbookReadingState() {
-  try {
-    const parsed = JSON.parse(fs.readFileSync(employeePolicyReadingStatePath, 'utf8'));
-    const recentTips = Array.isArray(parsed?.recentTips) ? parsed.recentTips.map(normalizeHandbookRecentTip).filter(Boolean).slice(0, HANDBOOK_RECENT_TIP_LIMIT) : [];
-    employeePolicyReadingState = { recentTips };
-  } catch {
-    employeePolicyReadingState = { recentTips: [] };
-  }
-}
-
-function saveHandbookReadingState() {
-  if (!employeePolicyReadingStatePath) return;
-  try { writeJsonAtomic(employeePolicyReadingStatePath, employeePolicyReadingState); } catch (error) { writeLog('保存员工守则最近阅读记录失败。', error); }
-}
-
-function recordHandbookTip(rule) {
-  const entry = normalizeHandbookRecentTip({ ...rule, shownAt: new Date().toISOString() });
-  if (!entry) return;
-  employeePolicyReadingState.recentTips = [entry, ...employeePolicyReadingState.recentTips.filter((item) => item.ruleKey !== entry.ruleKey)].slice(0, HANDBOOK_RECENT_TIP_LIMIT);
-  saveHandbookReadingState();
-}
-
-function handbookTipDurationMs(rule) {
-  const textLength = `${rule?.title || ''}${rule?.message || ''}`.length;
-  return Math.max(HANDBOOK_MIN_BUBBLE_DURATION_MS, Math.min(HANDBOOK_MAX_BUBBLE_DURATION_MS, 9000 + Math.ceil(textLength / 18) * 1000));
-}
-
-function localDayKey(date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
-function minutesSinceMidnight(date) {
-  return date.getHours() * 60 + date.getMinutes();
-}
-
-function isHandbookWorkday(date) {
-  return date.getDay() >= 1 && date.getDay() <= 5;
-}
-
-function handbookWeekdayIndex(date) {
-  return (date.getDay() + 6) % 7;
-}
-
-function resetHandbookSprinkleDay(now = new Date()) {
-  const key = localDayKey(now);
-  if (employeePolicySprinkleDay !== key) {
-    employeePolicySprinkleDay = key;
-    employeePolicySprinkleTriggered.clear();
-  }
-}
-
-function randomHandbookDelayMs() {
-  return (45 + Math.floor(Math.random() * 46)) * 60 * 1000;
-}
-
-function nextHandbookWorkdayStart(now) {
-  const next = new Date(now);
-  next.setHours(9, 0, 0, 0);
-  do next.setDate(next.getDate() + 1); while (!isHandbookWorkday(next));
-  return next;
-}
-
-function nextHandbookSprinkleAt(now) {
-  const minutes = minutesSinceMidnight(now);
-  if (isHandbookWorkday(now) && minutes >= HANDBOOK_WORK_START_MINUTES && minutes < HANDBOOK_WORK_END_MINUTES) {
-    const candidate = new Date(now.getTime() + randomHandbookDelayMs());
-    if (isHandbookWorkday(candidate) && minutesSinceMidnight(candidate) < HANDBOOK_WORK_END_MINUTES) return candidate;
-  }
-
-  const start = isHandbookWorkday(now) && minutes < HANDBOOK_WORK_START_MINUTES
-    ? new Date(now)
-    : nextHandbookWorkdayStart(now);
-  start.setHours(9, 0, 0, 0);
-  start.setTime(start.getTime() + randomHandbookDelayMs());
-  return start;
-}
-
-function handbookTipPool(now, requireCurrentWeekday = true) {
-  if (!employeePolicyPaths) return [];
-  let effective;
-  try { effective = effectiveEmployeePolicy(); } catch { return []; }
-  const day = handbookWeekdayIndex(now);
-  const rules = Array.isArray(effective.policy.reminders) ? effective.policy.reminders : [];
-  const defaultTips = loadEffectivePolicy({ sourceMode: 'local', defaultsPath: employeePolicyPaths.defaultsPath }).policy.reminders
-    .filter((rule) => isHandbookSprinkleRule(rule.ruleKey));
-  const cachedTips = rules.filter((rule) => isHandbookSprinkleRule(rule.ruleKey));
-  const tipSource = Array.from(new Map([...defaultTips, ...cachedTips].map((rule) => [rule.ruleKey, rule])).values());
-  if (tipSource.length) {
-    return tipSource.filter((rule) => rule?.enabled === true && (!requireCurrentWeekday || (Array.isArray(rule.weekdays) && rule.weekdays.includes(day))));
-  }
-  return rules.filter((rule) => rule?.enabled === true && (!requireCurrentWeekday || (Array.isArray(rule.weekdays) && rule.weekdays.includes(day))) && Number(String(rule.time || '').split(':')[1]) !== 0);
-}
-
-function handbookSprinkleCandidates(now) {
-  return handbookTipPool(now).filter((rule) => !employeePolicySprinkleTriggered.has(rule.ruleKey));
-}
-
-async function notifyHandbookTip(rule, { replay = false } = {}) {
-  if (!rule) return;
-  if (!replay) recordHandbookTip(rule);
-  await notifyReminder({
-    ...rule,
-    id: `employee-policy-${replay ? 'reading' : 'sprinkle'}:${rule.ruleKey}`,
-    title: `${replay ? '📖' : '💡'} ${String(rule.title || '').replace(/^(💡|📖)\s*/, '')}`,
-    notificationMode: 'bubble',
-    strongReminder: replay,
-    bubbleDurationMs: replay ? undefined : handbookTipDurationMs(rule),
-    acknowledgeLabel: replay ? '我看完了' : undefined,
-    managedBy: EMPLOYEE_POLICY_MANAGER,
-    sourceRuleId: rule.ruleKey
-  });
-}
-
-async function triggerHandbookTipManually() {
-  if (!config?.employeePolicy?.enabled || config.employeePolicy.sprinkleEnabled === false) return;
-  const now = new Date();
-  resetHandbookSprinkleDay(now);
-  const unseen = handbookSprinkleCandidates(now);
-  const candidates = unseen.length ? unseen : handbookTipPool(now, false);
-  if (!candidates.length) return;
-  const rule = candidates[Math.floor(Math.random() * candidates.length)];
-  employeePolicySprinkleTriggered.add(rule.ruleKey);
-  await notifyHandbookTip(rule);
-  scheduleHandbookSprinkle();
-}
-
-function replayHandbookTip(entry) {
-  const tip = normalizeHandbookRecentTip(entry);
-  if (!tip) return;
-  notifyHandbookTip(tip, { replay: true }).catch((error) => writeLog('继续阅读员工守则小贴士失败。', error));
-}
-
-function handbookTipMenuTemplate() {
-  const recentTips = employeePolicyReadingState.recentTips;
-  const available = config?.employeePolicy?.enabled && config.employeePolicy.sprinkleEnabled !== false && handbookTipPool(new Date(), false).length > 0;
-  const items = [
-    { label: '随机来一条小贴士', enabled: available, click: () => triggerHandbookTipManually().catch((error) => writeLog('手动触发员工守则小贴士失败。', error)) },
-    { label: '继续阅读上一条', enabled: recentTips.length > 0, click: () => replayHandbookTip(recentTips[0]) }
-  ];
-  if (recentTips.length) {
-    items.push({ label: '最近小贴士', submenu: recentTips.map((tip) => ({ label: (tip.title || tip.message).slice(0, 36), click: () => replayHandbookTip(tip) })) });
-  }
-  return { label: '员工守则小贴士', submenu: items };
-}
-
-async function runHandbookSprinkle() {
-  employeePolicySprinkleTimer = null;
-  const now = new Date();
-  resetHandbookSprinkleDay(now);
-  if (!config?.employeePolicy?.enabled || config.employeePolicy.sprinkleEnabled === false) return;
-
-  const minutes = minutesSinceMidnight(now);
-  if (isHandbookWorkday(now) && minutes >= HANDBOOK_WORK_START_MINUTES && minutes < HANDBOOK_WORK_END_MINUTES) {
-    const candidates = handbookSprinkleCandidates(now);
-    if (candidates.length) {
-      const rule = candidates[Math.floor(Math.random() * candidates.length)];
-      employeePolicySprinkleTriggered.add(rule.ruleKey);
-      await notifyHandbookTip(rule);
-    }
-  }
-  scheduleHandbookSprinkle();
-}
-
-function scheduleHandbookSprinkle() {
-  clearTimeout(employeePolicySprinkleTimer);
-  employeePolicySprinkleTimer = null;
-  if (!config?.employeePolicy?.enabled || config.employeePolicy.sprinkleEnabled === false) return;
-  const now = new Date();
-  resetHandbookSprinkleDay(now);
-  const minutes = minutesSinceMidnight(now);
-  if (isHandbookWorkday(now) && minutes >= HANDBOOK_WORK_START_MINUTES && minutes < HANDBOOK_WORK_END_MINUTES && !handbookSprinkleCandidates(now).length) {
-    employeePolicySprinkleTimer = setTimeout(() => scheduleHandbookSprinkle(), Math.max(1000, nextHandbookWorkdayStart(now).getTime() - now.getTime()));
-    return;
-  }
-  const target = nextHandbookSprinkleAt(now);
-  employeePolicySprinkleTimer = setTimeout(() => runHandbookSprinkle().catch((error) => {
-    writeLog('员工守则随机撒点失败。', error);
-    scheduleHandbookSprinkle();
-  }), Math.max(1000, target.getTime() - now.getTime()));
-}
-
-function startHandbookReminders() {
-  scheduleHandbookSprinkle();
-}
-
-function stopHandbookReminders() {
-  clearTimeout(employeePolicySprinkleTimer);
-  employeePolicySprinkleTimer = null;
-  employeePolicySprinkleTriggered.clear();
-  employeePolicySprinkleDay = '';
-}
-
-function scheduleEmployeePolicySync() {
-  clearTimeout(employeePolicyTimer);
-  if (!config?.employeePolicy?.enabled) return;
-  employeePolicyTimer = setTimeout(() => syncEmployeePolicy().catch(() => {}), 24 * 60 * 60 * 1000);
-}
-
-async function syncEmployeePolicy() {
-  if (employeePolicySyncPromise) return employeePolicySyncPromise;
-  employeePolicySyncPromise = (async () => {
-    const now = new Date().toISOString();
-    config.employeePolicy.lastAttemptAt = now;
-    config.employeePolicy.errorCode = null;
-    saveEmployeePolicyStatus();
-    if (!config.employeePolicy.enabled) return { ok: false, errorCode: 'disabled' };
-    if (config.employeePolicy.sourceMode === 'local') {
-      applyStoredEmployeePolicy();
-      saveConfigNow();
-      broadcastConfig();
-      scheduleEmployeePolicySync();
-      scheduleHandbookSprinkle();
-      return { ok: true, source: config.employeePolicy.currentSource };
-    }
-    employeePolicyAbortController = new AbortController();
-    try {
-      const result = await syncDifyPolicy({
-        baseUrl: config.employeePolicy.baseUrl || DEFAULT_DIFY_BASE_URL,
-        allowInsecureHttp: config.employeePolicy.allowInsecureHttp === true,
-        apiKey: process.env.KANGKANGPET_DIFY_API_KEY,
-        signal: employeePolicyAbortController.signal,
-        timeoutMs: EMPLOYEE_POLICY_SYNC_TIMEOUT_MS
-      });
-      const sourceRevision = policyRevision(result.policy);
-      writeJsonAtomic(employeePolicyPaths.cachePath, result.policy);
-      const policy = {
-        ...result.policy,
-        reminders: result.policy.reminders.map((reminder) => ({ ...reminder, enabled: config.employeePolicy.enabled && reminder.enabled && !isHandbookSprinkleRule(reminder.ruleKey) }))
-      };
-      config.reminders = normalizeReminders(mergeEmployeePolicyReminders(config.reminders, policy, { sourceKind: 'dify', sourceRevision }));
-      config.employeePolicy.currentSource = 'dify';
-      config.employeePolicy.currentPolicyVersion = policy.policyVersion;
-      config.employeePolicy.lastSuccessAt = new Date().toISOString();
-      config.employeePolicy.errorCode = null;
-      saveConfigNow();
-      broadcastConfig();
-      scheduleEmployeePolicySync();
-      scheduleHandbookSprinkle();
-      writeLog(`员工守则同步成功：版本 ${policy.policyVersion}。`);
-      return { ok: true, source: 'dify' };
-    } catch (error) {
-      config.employeePolicy.errorCode = error?.code || 'network-error';
-      saveEmployeePolicyStatus();
-      scheduleEmployeePolicySync();
-      writeLog(`员工守则同步失败：${config.employeePolicy.errorCode}。`);
-      return { ok: false, errorCode: config.employeePolicy.errorCode };
-    } finally {
-      employeePolicyAbortController = null;
-    }
-  })().finally(() => { employeePolicySyncPromise = null; });
-  return employeePolicySyncPromise;
 }
 
 function normalizeNotePosition(note) {
@@ -1525,8 +1173,6 @@ function trayMenuTemplate() {
     { label: '康康熊桌宠与提醒', submenu: [
       { label: petVisible ? '隐藏桌宠' : '显示桌宠', click: petVisible ? hidePet : showPet },
       { label: '快速新建提醒', click: createQuickReminderWindow },
-      { label: '立即同步员工守则', enabled: !employeePolicySyncPromise, click: () => syncEmployeePolicy().catch(() => {}) },
-      handbookTipMenuTemplate(),
       { label: '新建便利贴', click: createNote },
       { label: '显示全部便利贴', click: showAllNotes },
       { label: '隐藏全部便利贴', click: hideAllNotes }
@@ -1544,7 +1190,6 @@ function petContextMenuTemplate() {
     { type: 'separator' },
     { label: '隐藏桌宠', click: hidePet },
     { label: '快速新建提醒', click: createQuickReminderWindow },
-    handbookTipMenuTemplate(),
     { label: '新建便利贴', click: createNote },
     { label: '显示全部便利贴', click: showAllNotes },
     { label: '隐藏全部便利贴', click: hideAllNotes },
@@ -1625,10 +1270,6 @@ function applyConfigPatch(patch) {
   if (Object.prototype.hasOwnProperty.call(input, 'chinaHolidayEnabled')) next.chinaHolidayEnabled = input.chinaHolidayEnabled !== false;
   if (Object.prototype.hasOwnProperty.call(input, 'usHolidayEnabled')) next.usHolidayEnabled = input.usHolidayEnabled === true;
   if (Object.prototype.hasOwnProperty.call(input, 'calendarViewMode')) next.calendarViewMode = normalizeCalendarViewMode(input.calendarViewMode);
-  if (Object.prototype.hasOwnProperty.call(input, 'employeePolicy')) {
-    const employeePatch = input.employeePolicy && typeof input.employeePolicy === 'object' ? input.employeePolicy : {};
-    next.employeePolicy = normalizePolicySettings({ ...config.employeePolicy, ...employeePatch });
-  }
   if (Object.prototype.hasOwnProperty.call(input, 'responses')) next.responses = asList(input.responses, config.responses);
   if (Object.prototype.hasOwnProperty.call(input, 'idleMessages')) next.idleMessages = asList(input.idleMessages, config.idleMessages);
   if (Object.prototype.hasOwnProperty.call(input, 'interactionButtons')) next.interactionButtons = sanitizeRendererButtons(input.interactionButtons);
@@ -1637,13 +1278,6 @@ function applyConfigPatch(patch) {
   const oldAutoLaunch = config.autoLaunch;
   const oldCliAutoReconnect = config.cliAutoReconnect;
   config = normalizeConfig(next);
-  const policyChanged = JSON.stringify(config.employeePolicy) !== JSON.stringify(next.employeePolicy) || Object.prototype.hasOwnProperty.call(input, 'employeePolicy');
-  if (policyChanged) {
-    applyStoredEmployeePolicy();
-    scheduler?.reschedule('employee-policy-settings');
-    scheduleEmployeePolicySync();
-    scheduleHandbookSprinkle();
-  }
   if (config.autoLaunch !== oldAutoLaunch) applyAutoLaunchSetting();
   if (config.cliAutoReconnect !== oldCliAutoReconnect && config.cliAutoReconnect) {
     connectorManuallyPaused = false;
@@ -1662,11 +1296,6 @@ function saveReminders(reason) {
 }
 
 function saveReminder(input) {
-  const requestedId = typeof input?.id === 'string' ? input.id.trim() : '';
-  const existingReminder = config.reminders.find((item) => item.id === requestedId);
-  if (input?.managedBy === EMPLOYEE_POLICY_MANAGER || existingReminder?.managedBy === EMPLOYEE_POLICY_MANAGER) {
-    return { ok: false, errors: ['员工守则提醒由同步内容管理，不能手工编辑。'], config: publicConfig() };
-  }
   const result = validateReminder(input);
   if (!result.valid) return { ok: false, errors: result.errors, config: publicConfig() };
   const index = config.reminders.findIndex((item) => item.id === result.reminder.id);
@@ -1685,8 +1314,6 @@ function deleteReminder(reminderId) {
   const id = typeof reminderId === 'string' ? reminderId.trim() : '';
   if (!id) return { ...publicConfig(), ok: false, error: '日程 ID 无效。' };
   const previous = config.reminders;
-  const target = previous.find((item) => item.id === id);
-  if (target?.managedBy === EMPLOYEE_POLICY_MANAGER) return { ...publicConfig(), ok: false, error: '员工守则提醒由同步内容管理，不能手工删除。' };
   const next = previous.filter((item) => item.id !== id);
   if (next.length === previous.length) return { ...publicConfig(), ok: true, affected: 0 };
   config.reminders = sortReminders(next);
@@ -1715,14 +1342,9 @@ function bulkUpdateReminders(reminderIds, action) {
 function reorderReminders(ids) {
   if (!Array.isArray(ids)) return publicConfig();
   const lookup = new Map(config.reminders.map((item) => [item.id, item]));
-  const requestedIds = ids.map(String);
-  const manualIds = requestedIds.filter((id) => lookup.get(id)?.managedBy !== EMPLOYEE_POLICY_MANAGER);
-  const existingManual = config.reminders.filter((item) => item.managedBy !== EMPLOYEE_POLICY_MANAGER);
-  if (manualIds.length !== existingManual.length || new Set(manualIds).size !== manualIds.length || manualIds.some((id) => !lookup.has(id))) return publicConfig();
-  const manualQueue = manualIds.map((id) => lookup.get(id));
-  let manualIndex = 0;
-  config.reminders = config.reminders.map((item) => item.managedBy === EMPLOYEE_POLICY_MANAGER ? item : manualQueue[manualIndex++]);
-  config.reminders = config.reminders.map((item, index) => ({ ...item, sortOrder: index }));
+  const ordered = ids.map(String).map((id) => lookup.get(id)).filter(Boolean);
+  if (ordered.length !== config.reminders.length || new Set(ids.map(String)).size !== ordered.length) return publicConfig();
+  config.reminders = ordered.map((item, index) => ({ ...item, sortOrder: index }));
   saveReminders('reorder');
   return publicConfig();
 }
@@ -2001,29 +1623,6 @@ function setupIpc() {
   ipcMain.on('pet:set-click-through', (_event, ignore) => setPetClickThrough(ignore));
   ipcMain.on('pet:update-layout', (_event, layout) => updatePetLayout(layout));
   ipcMain.on('pet:context-menu', showPetContextMenu);
-  ipcMain.on('pet:drag-start', (event) => {
-    if (!petWindow || petWindow.isDestroyed() || event.sender !== petWindow.webContents) return;
-    const cursor = screen.getCursorScreenPoint();
-    const bounds = petWindow.getBounds();
-    petDragState = { offsetX: cursor.x - bounds.x, offsetY: cursor.y - bounds.y };
-  });
-  ipcMain.on('pet:drag-move', (event) => {
-    if (!petWindow || petWindow.isDestroyed() || event.sender !== petWindow.webContents || !petDragState) return;
-    const cursor = screen.getCursorScreenPoint();
-    config.position = {
-      x: Math.round(cursor.x - petDragState.offsetX),
-      y: Math.round(cursor.y - petDragState.offsetY)
-    };
-    petWindow.setPosition(config.position.x, config.position.y, false);
-    saveConfigSoon();
-  });
-  ipcMain.on('pet:drag-end', (event) => {
-    if (!petWindow || petWindow.isDestroyed() || event.sender !== petWindow.webContents || !petDragState) return;
-    const applyDeferredLayout = petLayoutDeferredDuringDrag;
-    petDragState = null;
-    petLayoutDeferredDuringDrag = false;
-    if (applyDeferredLayout && petLayoutState) applyPetLayout(petLayoutState);
-  });
   ipcMain.on('pet:move-by', (_event, delta) => {
     if (!petWindow || petWindow.isDestroyed()) return;
     const dx = Number(delta?.dx);
@@ -2070,9 +1669,6 @@ if (!app.requestSingleInstanceLock()) {
     setupAutoUpdater();
     scheduler = new ReminderScheduler({ getReminders: () => config.reminders, saveReminders, notify: notifyReminder, log: writeLog });
     scheduler.start();
-    startHandbookReminders();
-    scheduleEmployeePolicySync();
-    syncEmployeePolicy().catch(() => {});
     powerMonitor.on('resume', () => { scheduler?.reschedule('resume'); petWindow?.webContents.send('pet:performance-suspend', false); maintainForcomeConnector({ immediate: true }).catch((error) => writeLog('系统恢复后重连 FORCOME AI 失败。', error)); });
     powerMonitor.on('lock-screen', () => petWindow?.webContents.send('pet:performance-suspend', true));
     powerMonitor.on('suspend', () => petWindow?.webContents.send('pet:performance-suspend', true));
@@ -2100,9 +1696,6 @@ app.on('before-quit', (event) => {
   if (shutdownCleanupStarted) return;
   shutdownCleanupStarted = true;
   scheduler?.stop();
-  stopHandbookReminders();
-  clearTimeout(employeePolicyTimer);
-  employeePolicyAbortController?.abort();
   clearTimeout(forcomeSupervisorTimer);
   if (forcomeStatusWatchPath) fs.unwatchFile(forcomeStatusWatchPath);
   flushPendingNoteBounds();
