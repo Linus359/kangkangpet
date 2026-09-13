@@ -115,6 +115,7 @@ let employeePolicyTimer = null;
 let employeePolicySyncPromise = null;
 let employeePolicyAbortController = null;
 let employeePolicyRetryIndex = 0;
+let employeePolicyInteractiveBubbleBusy = false;
 let employeePolicySprinkleTimer = null;
 let employeePolicySprinkleDay = '';
 const employeePolicySprinkleTriggered = new Set();
@@ -793,8 +794,16 @@ function createPetWindow() {
   petWindow.loadFile('pet.html');
   petWindow.on('show', () => petWindow?.webContents.send('pet:visibility', true));
   petWindow.on('hide', () => petWindow?.webContents.send('pet:visibility', false));
-  petWindow.on('closed', () => { petWindow = null; petLayoutState = null; pendingPetLayout = null; });
-  petWindow.webContents.on('render-process-gone', (_event, details) => writeLog(`桌宠渲染进程异常：${details.reason}`));
+  petWindow.on('closed', () => {
+    employeePolicyInteractiveBubbleBusy = false;
+    petWindow = null;
+    petLayoutState = null;
+    pendingPetLayout = null;
+  });
+  petWindow.webContents.on('render-process-gone', (_event, details) => {
+    employeePolicyInteractiveBubbleBusy = false;
+    writeLog(`桌宠渲染进程异常：${details.reason}`);
+  });
   return petWindow;
 }
 
@@ -1014,7 +1023,7 @@ function handbookPolicyPool(now, requireCurrentWeekday = true) {
     .filter((rule) => rule?.enabled === true && (!requireCurrentWeekday || (Array.isArray(rule.weekdays) && rule.weekdays.includes(day))));
 }
 
-async function notifyHandbookTip(rule, { replay = false } = {}) {
+async function notifyHandbookTip(rule, { replay = false, interactive = false } = {}) {
   if (!rule) return;
   if (!replay) recordHandbookTip(rule);
   await notifyReminder({
@@ -1025,13 +1034,16 @@ async function notifyHandbookTip(rule, { replay = false } = {}) {
     strongReminder: replay,
     bubbleDurationMs: replay ? undefined : handbookTipDurationMs(rule),
     acknowledgeLabel: replay ? '我看完了' : undefined,
+    employeePolicyInteractive: interactive,
     managedBy: EMPLOYEE_POLICY_MANAGER,
     sourceRuleId: rule.ruleKey
   });
 }
 
-async function triggerHandbookTipManually() {
+async function triggerHandbookTipManually({ interactive = true } = {}) {
   if (!config?.employeePolicy?.enabled || config.employeePolicy.sprinkleEnabled === false) return { ok: false };
+  const shouldGate = interactive && config?.workModeEnabled !== false;
+  if (shouldGate && employeePolicyInteractiveBubbleBusy) return { ok: false, busy: true };
   const now = new Date();
   resetHandbookSprinkleDay(now);
   const unseen = handbookSprinkleCandidates(now);
@@ -1039,26 +1051,48 @@ async function triggerHandbookTipManually() {
   if (!candidates.length) return { ok: false };
   const rule = candidates[Math.floor(Math.random() * candidates.length)];
   employeePolicySprinkleTriggered.add(rule.ruleKey);
-  await notifyHandbookTip(rule);
+  if (shouldGate) employeePolicyInteractiveBubbleBusy = true;
+  try {
+    await notifyHandbookTip(rule, { interactive: shouldGate });
+  } catch (error) {
+    if (shouldGate) employeePolicyInteractiveBubbleBusy = false;
+    throw error;
+  }
   scheduleHandbookSprinkle();
   return { ok: true, ruleKey: rule.ruleKey };
 }
 
-async function triggerHandbookPolicyTip() {
+async function triggerHandbookPolicyTip({ interactive = true } = {}) {
   if (!config?.employeePolicy?.enabled) return { ok: false };
+  const shouldGate = interactive && config?.workModeEnabled !== false;
+  if (shouldGate && employeePolicyInteractiveBubbleBusy) return { ok: false, busy: true };
   const now = new Date();
   const todayCandidates = handbookPolicyPool(now);
   const candidates = todayCandidates.length ? todayCandidates : handbookPolicyPool(now, false);
   if (!candidates.length) return { ok: false };
   const rule = candidates[Math.floor(Math.random() * candidates.length)];
-  await notifyHandbookTip(rule);
+  if (shouldGate) employeePolicyInteractiveBubbleBusy = true;
+  try {
+    await notifyHandbookTip(rule, { interactive: shouldGate });
+  } catch (error) {
+    if (shouldGate) employeePolicyInteractiveBubbleBusy = false;
+    throw error;
+  }
   return { ok: true, ruleKey: rule.ruleKey };
 }
 
-async function replayHandbookTip(entry) {
+async function replayHandbookTip(entry, { interactive = true } = {}) {
   const tip = normalizeHandbookRecentTip(entry);
   if (!tip) return { ok: false };
-  await notifyHandbookTip(tip, { replay: true });
+  const shouldGate = interactive && config?.workModeEnabled !== false;
+  if (shouldGate && employeePolicyInteractiveBubbleBusy) return { ok: false, busy: true };
+  if (shouldGate) employeePolicyInteractiveBubbleBusy = true;
+  try {
+    await notifyHandbookTip(tip, { replay: true, interactive: shouldGate });
+  } catch (error) {
+    if (shouldGate) employeePolicyInteractiveBubbleBusy = false;
+    throw error;
+  }
   return { ok: true, ruleKey: tip.ruleKey };
 }
 
@@ -2051,6 +2085,10 @@ function setupIpc() {
   ipcMain.on('pet:set-click-through', (_event, ignore) => setPetClickThrough(ignore));
   ipcMain.on('pet:update-layout', (_event, layout) => updatePetLayout(layout));
   ipcMain.on('pet:context-menu', showPetContextMenu);
+  ipcMain.on('pet:employee-policy-bubble-finished', (event) => {
+    if (!petWindow || petWindow.isDestroyed() || event.sender !== petWindow.webContents) return;
+    employeePolicyInteractiveBubbleBusy = false;
+  });
   ipcMain.on('pet:drag-start', (event) => {
     if (!petWindow || petWindow.isDestroyed() || event.sender !== petWindow.webContents) return;
     const cursor = screen.getCursorScreenPoint();

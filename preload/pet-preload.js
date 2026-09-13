@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('petApi', {
   showHandbookTip: () => ipcRenderer.invoke('pet:show-handbook-tip'),
   showPolicyTip: () => ipcRenderer.invoke('pet:show-policy-tip'),
   replayHandbookTip: () => ipcRenderer.invoke('pet:replay-handbook-tip'),
+  finishEmployeePolicyBubble: () => ipcRenderer.send('pet:employee-policy-bubble-finished'),
   startDrag: () => ipcRenderer.send('pet:drag-start'),
   moveDrag: () => ipcRenderer.send('pet:drag-move'),
   endDrag: () => ipcRenderer.send('pet:drag-end'),

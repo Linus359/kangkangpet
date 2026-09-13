@@ -399,6 +399,10 @@
     let bubbleDismissState = null;
     let reminderQueue = [];
     let reminderVisible = false;
+    let currentReminder = null;
+    let workModeDifyBusy = false;
+    let workModeDifyRequestPending = false;
+    let employeePolicyInteractionReported = false;
     let idleTimer = null;
     let dragState = null;
     let suppressPetClick = false;
@@ -434,6 +438,38 @@
     const BUBBLE_ALPHA_THRESHOLD = 48;
     const BUBBLE_BODY_GAP = 10;
     const BUBBLE_TRANSITION_MS = 240;
+
+    function isEmployeePolicyReminder(reminder) {
+      return reminder?.managedBy === 'employee-policy';
+    }
+
+    function hasEmployeePolicyReminderPending() {
+      return isEmployeePolicyReminder(currentReminder) || reminderQueue.some(isEmployeePolicyReminder);
+    }
+
+    function refreshWorkModeDifyBusy() {
+      const employeePolicyPending = hasEmployeePolicyReminderPending();
+      workModeDifyBusy = config?.workModeEnabled !== false && (workModeDifyRequestPending || employeePolicyPending);
+      if (!employeePolicyPending && !workModeDifyRequestPending && employeePolicyInteractionReported) {
+        employeePolicyInteractionReported = false;
+        desktopPetApi.finishEmployeePolicyBubble();
+      }
+    }
+
+    function beginWorkModeDifyRequest() {
+      if (config?.workModeEnabled === false) return true;
+      refreshWorkModeDifyBusy();
+      if (workModeDifyBusy || workModeDifyRequestPending) return false;
+      workModeDifyRequestPending = true;
+      workModeDifyBusy = true;
+      return true;
+    }
+
+    function settleWorkModeDifyRequest(result) {
+      if (result?.ok) return;
+      workModeDifyRequestPending = false;
+      refreshWorkModeDifyBusy();
+    }
 
     function pick(list, fallback) {
       const source = Array.isArray(list) && list.length ? list : [fallback];
@@ -804,8 +840,10 @@
           bubbleLayoutReserved = false;
           updateWindowLayout(false);
           if (state.isReminder) {
+            currentReminder = null;
             reminderVisible = false;
             showNextReminder();
+            refreshWorkModeDifyBusy();
           }
         }, BUBBLE_TRANSITION_MS);
       }, state.remaining);
@@ -871,6 +909,7 @@
       if (reminderVisible || !reminderQueue.length) return;
       reminderVisible = true;
       const reminder = reminderQueue.shift();
+      currentReminder = reminder;
       window.currentStrongReminder = reminder.strongReminder === true;
       reminderAcknowledge.textContent = typeof reminder.acknowledgeLabel === 'string' && reminder.acknowledgeLabel.trim() ? reminder.acknowledgeLabel.trim() : '确定';
       const text = [reminder.title, reminder.message].filter(Boolean).join('：') || '康康熊提醒你注意一件事。';
@@ -894,9 +933,11 @@
       bubbleCollapseTimer = setTimeout(() => {
         bubble.classList.remove('reminder');
         bubbleLayoutReserved = false;
+        currentReminder = null;
         reminderVisible = false;
         updateWindowLayout(false);
         showNextReminder();
+        refreshWorkModeDifyBusy();
       }, BUBBLE_TRANSITION_MS);
     });
 
@@ -997,6 +1038,8 @@
 
     async function interact(source) {
       if (config?.doNotDisturbMode) return;
+      const workModeEnabled = config?.workModeEnabled !== false;
+      if (workModeEnabled && !beginWorkModeDifyRequest()) return;
       const button = typeof source === 'object' && source ? source : null;
       const buttonAssets = assetsForButton(button);
       const freshButtonAssets = buttonAssets.filter((asset) => asset.id !== displayedAssetId);
@@ -1004,9 +1047,10 @@
       const actionKeys = button?.actionKeys?.length ? button.actionKeys : ['rub', 'greet', 'look'];
       const selectedAction = selectedAsset?.actionKey || pick(actionKeys, 'look');
       idleRoutine = makeRoutine(['play', 'hunt', 'walk', 'sharpen', 'defensive'].includes(selectedAction) ? 'coolDown' : 'groomCycle');
-      if (config?.workModeEnabled !== false) {
+      if (workModeEnabled) {
         playAction(selectedAction, { asset: selectedAsset, animate: true, interaction: true, suppressIdleMessage: true });
-        await desktopPetApi.showPolicyTip();
+        const result = await desktopPetApi.showPolicyTip();
+        settleWorkModeDifyRequest(result);
         return;
       }
       const responses = button?.responses?.length ? button.responses : config?.responses;
@@ -1448,18 +1492,24 @@
     }
 
     async function showHandbookTip() {
+      if (!beginWorkModeDifyRequest()) return;
       playAction('think', { animate: true, interaction: true, suppressIdleMessage: true });
-      await desktopPetApi.showHandbookTip();
+      const result = await desktopPetApi.showHandbookTip();
+      settleWorkModeDifyRequest(result);
     }
 
     async function showPolicyTip() {
+      if (!beginWorkModeDifyRequest()) return;
       playAction('work', { animate: true, interaction: true, suppressIdleMessage: true });
-      await desktopPetApi.showPolicyTip();
+      const result = await desktopPetApi.showPolicyTip();
+      settleWorkModeDifyRequest(result);
     }
 
     async function replayHandbookTip() {
+      if (!beginWorkModeDifyRequest()) return;
       playAction('think', { animate: true, interaction: true, suppressIdleMessage: true });
-      await desktopPetApi.replayHandbookTip();
+      const result = await desktopPetApi.replayHandbookTip();
+      settleWorkModeDifyRequest(result);
     }
 
     function renderInteractionMenus() {
@@ -1616,6 +1666,8 @@
     });
 
     desktopPetApi.onConfigChanged((nextConfig) => {
+      config = nextConfig;
+      refreshWorkModeDifyBusy();
       render(nextConfig);
       if (nextConfig.doNotDisturbMode) {
         clearTimeout(idleTimer);
@@ -1631,8 +1683,13 @@
     });
 
     desktopPetApi.onReminder((reminder) => {
+      if (isEmployeePolicyReminder(reminder)) {
+        workModeDifyRequestPending = false;
+        if (reminder.employeePolicyInteractive === true) employeePolicyInteractionReported = true;
+      }
       reminderQueue.push(reminder);
       showNextReminder();
+      refreshWorkModeDifyBusy();
     });
 
     desktopPetApi.onVisibilityChanged((visible) => {
