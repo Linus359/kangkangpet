@@ -12,8 +12,11 @@
     "smoke": "node scripts/smoke-check.js",
     "prepack": "node scripts/process-pet-assets.js",
     "pack": "electron-builder --dir",
+    "postpack": "node scripts/clean-dist.js",
     "predist": "node scripts/process-pet-assets.js",
     "dist": "electron-builder --win nsis",
+    "postdist": "node scripts/clean-dist.js",
+    "clean:dist": "node scripts/clean-dist.js",
     "build:exe": "powershell -ExecutionPolicy Bypass -File .\\scripts\\build-exe.ps1",
     "cert:generate": "powershell -ExecutionPolicy Bypass -File .\\scripts\\generate-code-sign-cert.ps1"
   },
