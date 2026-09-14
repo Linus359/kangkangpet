@@ -9,6 +9,7 @@ const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 
 const currentArtifacts = new Set([
   `kangkangpet-setup-${packageJson.version}.exe`,
   `kangkangpet-setup-${packageJson.version}.exe.blockmap`,
+  `kangkangpet-portable-${packageJson.version}.zip`,
   'latest.yml'
 ]);
 
