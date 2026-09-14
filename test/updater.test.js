@@ -28,6 +28,11 @@ test('checks packaged installs for updates without affecting development', () =>
   assert.match(mainSource, /autoUpdater\.checkForUpdates\(\)/);
   assert.match(mainSource, /autoUpdater\.autoDownload = false;/);
   assert.match(mainSource, /autoUpdater\.disableDifferentialDownload = false;/);
+  assert.match(mainSource, /UPDATER_RETRY_DELAYS_MS = \[30000, 120000, 300000\]/);
+  assert.match(mainSource, /autoUpdater\.requestHeaders =/);
+  assert.match(mainSource, /'Cache-Control': 'no-cache'/);
+  assert.match(mainSource, /function scheduleUpdaterRetry\(\)/);
+  assert.match(mainSource, /更新器错误：/);
   assert.match(mainSource, /autoUpdater\.on\('download-progress'/);
   assert.match(mainSource, /bytesPerSecond/);
   assert.match(mainSource, /transferred/);

@@ -152,6 +152,8 @@ let updaterDownloadPromise = null;
 let updaterPromptVersion = null;
 let updaterInstalling = false;
 let updaterShutdownPromise = null;
+let updaterRetryTimer = null;
+let updaterRetryIndex = 0;
 let updaterState = { status: 'idle', version: null, message: '尚未检查更新。', percent: null, bytesPerSecond: 0, transferred: 0, total: 0 };
 let forcomeStatus = { available: false, authenticated: false, connectorRunning: false, externalConnectorRunning: false };
 let forcomeSupervisorTimer = null;
@@ -162,6 +164,7 @@ let connectorManuallyPaused = false;
 const trayStatusIcons = new Map();
 const FORCOME_HEALTH_CHECK_MS = 2 * 60 * 1000;
 const FORCOME_RECONNECT_DELAYS_MS = [5000, 15000, 30000, 60000, 120000];
+const UPDATER_RETRY_DELAYS_MS = [30000, 120000, 300000];
 
 function writeLog(message, error = null) {
   if (logger) logger.write(message, error);
@@ -182,6 +185,22 @@ function setUpdaterState(next) {
   broadcastUpdaterState();
 }
 
+function clearUpdaterRetry() {
+  if (updaterRetryTimer) clearTimeout(updaterRetryTimer);
+  updaterRetryTimer = null;
+  updaterRetryIndex = 0;
+}
+
+function scheduleUpdaterRetry() {
+  if (!app.isPackaged || updaterRetryTimer || updaterInstalling || updaterRetryIndex >= UPDATER_RETRY_DELAYS_MS.length) return;
+  const delay = UPDATER_RETRY_DELAYS_MS[updaterRetryIndex++];
+  updaterRetryTimer = setTimeout(() => {
+    updaterRetryTimer = null;
+    checkForUpdates().catch((error) => writeLog('后台重试在线更新检查失败。', error));
+  }, delay);
+  writeLog(`在线更新检查将在 ${Math.round(delay / 1000)} 秒后自动重试。`);
+}
+
 function configureAutoUpdater() {
   if (updaterConfigured || !app.isPackaged) return;
   updaterConfigured = true;
@@ -193,19 +212,34 @@ function configureAutoUpdater() {
   autoUpdater.autoRunAppAfterInstall = true;
   autoUpdater.disableDifferentialDownload = false;
   autoUpdater.disableWebInstaller = true;
+  autoUpdater.requestHeaders = {
+    'Cache-Control': 'no-cache',
+    'User-Agent': `${APP_NAME}/${app.getVersion()}`
+  };
+  autoUpdater.logger = {
+    info: (message) => writeLog(`更新器：${message}`),
+    warn: (message) => writeLog(`更新器警告：${message}`),
+    error: (message) => writeLog(`更新器错误：${message}`),
+    debug: (message) => writeLog(`更新器调试：${message}`)
+  };
   autoUpdater.on('checking-for-update', () => setUpdaterState({ status: 'checking', message: '正在检查更新...', percent: null, bytesPerSecond: 0, transferred: 0, total: 0 }));
   autoUpdater.on('error', (error) => {
     updaterDownloadPromise = null;
     updaterPromptVersion = null;
     setUpdaterState({ status: 'error', version: null, message: '更新失败，请稍后重试。', percent: null, bytesPerSecond: 0, transferred: 0, total: 0 });
     writeLog('在线更新检查失败。', error);
+    scheduleUpdaterRetry();
   });
   autoUpdater.on('update-available', (info) => {
+    clearUpdaterRetry();
     setUpdaterState({ status: 'awaiting-confirmation', version: info.version, message: `发现新版本 ${info.version}，等待确认下载。`, percent: 0, bytesPerSecond: 0, transferred: 0, total: 0 });
     writeLog(`发现在线更新：${info.version}。`);
     promptAndDownloadUpdate(info).catch((error) => writeLog('更新确认流程失败。', error));
   });
-  autoUpdater.on('update-not-available', () => setUpdaterState({ status: 'latest', version: app.getVersion(), message: `当前已是最新版本（${app.getVersion()}）。`, percent: null, bytesPerSecond: 0, transferred: 0, total: 0 }));
+  autoUpdater.on('update-not-available', () => {
+    clearUpdaterRetry();
+    setUpdaterState({ status: 'latest', version: app.getVersion(), message: `当前已是最新版本（${app.getVersion()}）。`, percent: null, bytesPerSecond: 0, transferred: 0, total: 0 });
+  });
   autoUpdater.on('download-progress', (progress) => {
     const percent = Number.isFinite(progress?.percent) ? Math.max(0, Math.min(100, progress.percent)) : null;
     const bytesPerSecond = Number.isFinite(progress?.bytesPerSecond) ? Math.max(0, progress.bytesPerSecond) : 0;
@@ -283,6 +317,7 @@ async function checkForUpdates() {
     .then(() => autoUpdater.checkForUpdates())
     .then((result) => {
       if (result?.isUpdateAvailable) {
+        clearUpdaterRetry();
         const version = result.updateInfo?.version || updaterState.version;
         const next = ['awaiting-confirmation', 'downloading', 'deferred', 'installing'].includes(updaterState.status)
           ? updaterState
@@ -291,6 +326,7 @@ async function checkForUpdates() {
         return next;
       }
       const next = { status: 'latest', version: app.getVersion(), message: `当前已是最新版本（${app.getVersion()}）。` };
+      clearUpdaterRetry();
       setUpdaterState(next);
       return next;
     })
@@ -298,6 +334,7 @@ async function checkForUpdates() {
       const next = { status: 'error', version: null, message: '检查更新失败，请稍后重试。' };
       setUpdaterState(next);
       writeLog('无法启动在线更新检查。', error);
+      scheduleUpdaterRetry();
       return next;
     })
     .finally(() => { updaterCheckPromise = null; });
