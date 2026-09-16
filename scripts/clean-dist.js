@@ -21,7 +21,9 @@ function archiveHistoricalSetup(entry) {
 
   const versionDir = path.join(setupArchiveDir, match[1]);
   fs.mkdirSync(versionDir, { recursive: true });
-  fs.renameSync(path.join(distDir, entry.name), path.join(versionDir, entry.name));
+  const destination = path.join(versionDir, entry.name);
+  if (fs.existsSync(destination)) fs.rmSync(destination, { force: true });
+  fs.renameSync(path.join(distDir, entry.name), destination);
   return true;
 }
 
