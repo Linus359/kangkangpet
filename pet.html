@@ -906,10 +906,9 @@
       });
     }
 
-    function showNextReminder() {
-      if (reminderVisible || !reminderQueue.length) return;
+    function presentReminder(reminder) {
+      if (!reminder) return;
       reminderVisible = true;
-      const reminder = reminderQueue.shift();
       currentReminder = reminder;
       window.currentStrongReminder = reminder.strongReminder === true;
       reminderAcknowledge.textContent = typeof reminder.acknowledgeLabel === 'string' && reminder.acknowledgeLabel.trim() ? reminder.acknowledgeLabel.trim() : '确定';
@@ -921,6 +920,18 @@
       } else {
         showMessage(text, window.currentStrongReminder ? 0 : 9000, true);
       }
+    }
+
+    function showNextReminder() {
+      if (reminderVisible || !reminderQueue.length) return;
+      presentReminder(reminderQueue.shift());
+    }
+
+    function showInteractiveReminderImmediately(reminder) {
+      if (!reminder) return;
+      if (currentReminder && currentReminder !== reminder && currentReminder.employeePolicyInteractive !== true) reminderQueue.unshift(currentReminder);
+      reminderQueue = reminderQueue.filter((item) => item?.employeePolicyInteractive !== true);
+      presentReminder(reminder);
     }
 
     reminderAcknowledge.addEventListener('click', (event) => {
@@ -1040,7 +1051,6 @@
     async function interact(source) {
       if (config?.doNotDisturbMode) return;
       const workModeEnabled = config?.workModeEnabled !== false;
-      if (workModeEnabled && !beginWorkModeDifyRequest()) return;
       const button = typeof source === 'object' && source ? source : null;
       const buttonAssets = assetsForButton(button);
       const freshButtonAssets = buttonAssets.filter((asset) => asset.id !== displayedAssetId);
@@ -1050,8 +1060,7 @@
       idleRoutine = makeRoutine(['play', 'hunt', 'walk', 'sharpen', 'defensive'].includes(selectedAction) ? 'coolDown' : 'groomCycle');
       if (workModeEnabled) {
         playAction(selectedAction, { asset: selectedAsset, animate: true, interaction: true, suppressIdleMessage: true });
-        const result = await desktopPetApi.showPolicyTip();
-        settleWorkModeDifyRequest(result);
+        await desktopPetApi.showHandbookTip({ interactive: true });
         return;
       }
       const responses = button?.responses?.length ? button.responses : config?.responses;
@@ -1494,21 +1503,12 @@
 
     async function showHandbookTip() {
       playAction('think', { animate: true, interaction: true, suppressIdleMessage: true });
-      await desktopPetApi.showHandbookTip({ interactive: false });
-    }
-
-    async function showPolicyTip() {
-      if (!beginWorkModeDifyRequest()) return;
-      playAction('work', { animate: true, interaction: true, suppressIdleMessage: true });
-      const result = await desktopPetApi.showPolicyTip();
-      settleWorkModeDifyRequest(result);
+      await desktopPetApi.showHandbookTip({ interactive: true });
     }
 
     async function replayHandbookTip() {
-      if (!beginWorkModeDifyRequest()) return;
       playAction('think', { animate: true, interaction: true, suppressIdleMessage: true });
-      const result = await desktopPetApi.replayHandbookTip();
-      settleWorkModeDifyRequest(result);
+      await desktopPetApi.replayHandbookTip();
     }
 
     function renderInteractionMenus() {
@@ -1522,7 +1522,6 @@
       if (workModeEnabled) {
         playMenu.menu.append(
           createMenuItem('💡', '随机来一条小贴士', showHandbookTip),
-          createMenuItem('📋', '今日员工守则', showPolicyTip),
           createMenuItem('📖', '继续阅读上一条', replayHandbookTip)
         );
       } else {
@@ -1714,8 +1713,11 @@
         workModeDifyRequestPending = false;
         if (reminder.employeePolicyInteractive === true) employeePolicyInteractionReported = true;
       }
-      reminderQueue.push(reminder);
-      showNextReminder();
+      if (reminder.employeePolicyInteractive === true) showInteractiveReminderImmediately(reminder);
+      else {
+        reminderQueue.push(reminder);
+        showNextReminder();
+      }
       refreshWorkModeDifyBusy();
     });
 

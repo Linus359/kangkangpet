@@ -8,7 +8,6 @@ contextBridge.exposeInMainWorld('petApi', {
   openQuickReminder: () => ipcRenderer.invoke('quick-reminder:open'),
   toggleWorkMode: () => ipcRenderer.invoke('pet:toggle-work-mode'),
   showHandbookTip: (options) => ipcRenderer.invoke('pet:show-handbook-tip', options),
-  showPolicyTip: () => ipcRenderer.invoke('pet:show-policy-tip'),
   replayHandbookTip: () => ipcRenderer.invoke('pet:replay-handbook-tip'),
   finishEmployeePolicyBubble: () => ipcRenderer.send('pet:employee-policy-bubble-finished'),
   startDrag: () => ipcRenderer.send('pet:drag-start'),

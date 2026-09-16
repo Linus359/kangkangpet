@@ -316,6 +316,16 @@
     const clockList = $('#clockList'); const timeZoneSelect = $('#timeZoneSelect'); const anniversaryList = $('#anniversaryList'); const holidayToday = $('#holidayToday'); const chinaHolidayEnabled = $('#chinaHolidayEnabled'); const usHolidayEnabled = $('#usHolidayEnabled'); const holidayStatus = $('#holidayStatus'); const usHolidayStatus = $('#usHolidayStatus'); const exchangeAmount = $('#exchangeAmount'); const exchangeBase = $('#exchangeBase'); const exchangeQuote = $('#exchangeQuote'); const exchangeRefresh = $('#exchangeRefresh'); const exchangeRateStatus = $('#exchangeRateStatus'); const exchangeResult = $('#exchangeResult'); const exchangeMeta = $('#exchangeMeta'); const newStaffStartDate = $('#newStaffStartDate'); const newStaffStatus = $('#newStaffStatus'); const timeZoneOptions = [['Asia/Shanghai','中国时间'],['America/New_York','美国东部'],['America/Los_Angeles','美国西部'],['Europe/London','英国时间'],['Asia/Tokyo','日本时间']];
     let config = null; let appInfo = null; let forcomeCliStatus = null; let cliActionInFlight = false; let saveTimer = null; let pendingSaveFactory = null; let saveInFlight = false; let composingInput = false; let statusTimer = null; let renderLock = false; let draggingId = null; let selectedReminderIds = new Set(); let updateCheckInFlight = false; let exchangeRateInFlight = false; let exchangeRateState = null; let monthCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1); let selectedDate = dateKey(new Date()); let calendarView = 'month'; let pendingDraftId = null; let calendarQuickReminder = null; let monthStackResetPending = false; let monthStackRenderToken = 0; let reminderSortMode = 'manual'; let reminderFilterMode = 'all'; let miniSlideDirection = 0; let holidayItems = []; let usHolidayItems = []; let holidayRefreshToken = 0;
 
+    const exchangeCurrencies = [['CNY','人民币'],['USD','美元'],['EUR','欧元'],['JPY','日元'],['HKD','港币'],['GBP','英镑'],['CAD','加拿大元'],['AUD','澳大利亚元'],['NZD','新西兰元'],['CHF','瑞士法郎'],['KRW','韩元'],['SGD','新加坡元'],['INR','印度卢比'],['TWD','新台币'],['THB','泰铢'],['MYR','马来西亚林吉特'],['IDR','印尼盾'],['PHP','菲律宾比索'],['VND','越南盾'],['SEK','瑞典克朗'],['NOK','挪威克朗'],['DKK','丹麦克朗'],['PLN','波兰兹罗提'],['TRY','土耳其里拉'],['RUB','俄罗斯卢布'],['BRL','巴西雷亚尔'],['MXN','墨西哥比索'],['ZAR','南非兰特'],['AED','阿联酋迪拉姆'],['SAR','沙特里亚尔'],['ILS','以色列新谢克尔'],['CZK','捷克克朗'],['HUF','匈牙利福林'],['RON','罗马尼亚列伊']];
+    function populateExchangeCurrencies() {
+      [exchangeBase, exchangeQuote].forEach((select) => {
+        const current = select.value;
+        select.replaceChildren(...exchangeCurrencies.map(([code, label]) => { const option = document.createElement('option'); option.value = code; option.textContent = `${label}（${code}）`; return option; }));
+        if (exchangeCurrencies.some(([code]) => code === current)) select.value = current;
+      });
+    }
+    populateExchangeCurrencies();
+
     function id() { return crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`; }
     function dateKey(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
     function fromKey(key) { const [year, month, day] = String(key).split('-').map(Number); return new Date(year, month - 1, day); }

@@ -136,6 +136,7 @@ let petWindow;
 let panelWindow;
 let quickReminderWindow;
 let tray;
+let traySingleClickTimer = null;
 let saveTimer;
 let notesSaveTimer;
 let petWindowDestroyTimer = null;
@@ -171,6 +172,7 @@ const trayStatusIcons = new Map();
 const FORCOME_HEALTH_CHECK_MS = 2 * 60 * 1000;
 const FORCOME_RECONNECT_DELAYS_MS = [5000, 15000, 30000, 60000, 120000];
 const UPDATER_RETRY_DELAYS_MS = [30000, 120000, 300000];
+const TRAY_DOUBLE_CLICK_WINDOW_MS = 600;
 
 function writeLog(message, error = null) {
   if (logger) logger.write(message, error);
@@ -1111,15 +1113,6 @@ function handbookSprinkleCandidates(now) {
   return handbookTipPool(now).filter((rule) => !employeePolicySprinkleTriggered.has(rule.ruleKey));
 }
 
-function handbookPolicyPool(now, requireCurrentWeekday = true) {
-  if (!employeePolicyPaths) return [];
-  let effective;
-  try { effective = effectiveEmployeePolicy(); } catch { return []; }
-  const day = handbookWeekdayIndex(now);
-  return (Array.isArray(effective.policy.reminders) ? effective.policy.reminders : [])
-    .filter((rule) => rule?.enabled === true && isEmployeePolicyRuleEligible(rule, now) && (!requireCurrentWeekday || (Array.isArray(rule.weekdays) && rule.weekdays.includes(day))));
-}
-
 async function notifyHandbookTip(rule, { replay = false, interactive = false } = {}) {
   if (!rule) return;
   if (!replay) recordHandbookTip(rule);
@@ -1139,8 +1132,6 @@ async function notifyHandbookTip(rule, { replay = false, interactive = false } =
 
 async function triggerHandbookTipManually({ interactive = true } = {}) {
   if (!config?.employeePolicy?.enabled || config.employeePolicy.sprinkleEnabled === false) return { ok: false };
-  const shouldGate = interactive && config?.workModeEnabled !== false;
-  if (shouldGate && employeePolicyInteractiveBubbleBusy) return { ok: false, busy: true };
   const now = new Date();
   resetHandbookSprinkleDay(now);
   const unseen = handbookSprinkleCandidates(now);
@@ -1148,48 +1139,15 @@ async function triggerHandbookTipManually({ interactive = true } = {}) {
   if (!candidates.length) return { ok: false };
   const rule = candidates[Math.floor(Math.random() * candidates.length)];
   employeePolicySprinkleTriggered.add(rule.ruleKey);
-  if (shouldGate) employeePolicyInteractiveBubbleBusy = true;
-  try {
-    await notifyHandbookTip(rule, { interactive: shouldGate });
-  } catch (error) {
-    if (shouldGate) employeePolicyInteractiveBubbleBusy = false;
-    throw error;
-  }
+  await notifyHandbookTip(rule, { interactive });
   scheduleHandbookSprinkle();
-  return { ok: true, ruleKey: rule.ruleKey };
-}
-
-async function triggerHandbookPolicyTip({ interactive = true } = {}) {
-  if (!config?.employeePolicy?.enabled) return { ok: false };
-  const shouldGate = interactive && config?.workModeEnabled !== false;
-  if (shouldGate && employeePolicyInteractiveBubbleBusy) return { ok: false, busy: true };
-  const now = new Date();
-  const todayCandidates = handbookPolicyPool(now);
-  const candidates = todayCandidates.length ? todayCandidates : handbookPolicyPool(now, false);
-  if (!candidates.length) return { ok: false };
-  const rule = candidates[Math.floor(Math.random() * candidates.length)];
-  if (shouldGate) employeePolicyInteractiveBubbleBusy = true;
-  try {
-    await notifyHandbookTip(rule, { interactive: shouldGate });
-  } catch (error) {
-    if (shouldGate) employeePolicyInteractiveBubbleBusy = false;
-    throw error;
-  }
   return { ok: true, ruleKey: rule.ruleKey };
 }
 
 async function replayHandbookTip(entry, { interactive = true } = {}) {
   const tip = normalizeHandbookRecentTip(entry);
   if (!tip) return { ok: false };
-  const shouldGate = interactive && config?.workModeEnabled !== false;
-  if (shouldGate && employeePolicyInteractiveBubbleBusy) return { ok: false, busy: true };
-  if (shouldGate) employeePolicyInteractiveBubbleBusy = true;
-  try {
-    await notifyHandbookTip(tip, { replay: true, interactive: shouldGate });
-  } catch (error) {
-    if (shouldGate) employeePolicyInteractiveBubbleBusy = false;
-    throw error;
-  }
+  await notifyHandbookTip(tip, { replay: true, interactive });
   return { ok: true, ruleKey: tip.ruleKey };
 }
 
@@ -1724,15 +1682,42 @@ function petContextMenuTemplate() {
   ];
 }
 
+function clearTraySingleClickTimer() {
+  clearTimeout(traySingleClickTimer);
+  traySingleClickTimer = null;
+}
+
+function togglePetVisibility() {
+  const visible = Boolean(petWindow && !petWindow.isDestroyed() && petWindow.isVisible());
+  if (visible) hidePet();
+  else showPet();
+}
+
+function handleTraySingleClick() {
+  clearTraySingleClickTimer();
+  traySingleClickTimer = setTimeout(() => {
+    traySingleClickTimer = null;
+    if (!isQuitting) togglePetVisibility();
+  }, TRAY_DOUBLE_CLICK_WINDOW_MS);
+}
+
+function handleTrayDoubleClick() {
+  clearTraySingleClickTimer();
+  createPanelWindow();
+}
+
 function createTray() {
   if (tray) return;
   const iconPath = appIconPath();
   const icon = iconPath ? nativeImage.createFromPath(iconPath) : nativeImage.createEmpty();
   tray = new Tray(icon && !icon.isEmpty() ? icon : nativeImage.createEmpty());
   updateForcomeTrayStatus();
-  tray.on('click', () => openConfiguredPwa());
-  tray.on('double-click', () => createPanelWindow());
-  tray.on('right-click', () => tray.popUpContextMenu(Menu.buildFromTemplate(trayMenuTemplate())));
+  tray.on('click', handleTraySingleClick);
+  tray.on('double-click', handleTrayDoubleClick);
+  tray.on('right-click', () => {
+    clearTraySingleClickTimer();
+    tray.popUpContextMenu(Menu.buildFromTemplate(trayMenuTemplate()));
+  });
 }
 
 function showPetContextMenu() {
@@ -2165,7 +2150,6 @@ function setupIpc() {
   ipcMain.handle('quick-reminder:open', () => { createQuickReminderWindow(); return true; });
   ipcMain.handle('pet:toggle-work-mode', () => toggleWorkMode());
   ipcMain.handle('pet:show-handbook-tip', (_event, options) => triggerHandbookTipManually(options && typeof options === 'object' ? options : {}));
-  ipcMain.handle('pet:show-policy-tip', () => triggerHandbookPolicyTip());
   ipcMain.handle('pet:replay-handbook-tip', () => replayHandbookTip(employeePolicyReadingState.recentTips[0]));
   ipcMain.handle('quick-reminder:close', () => { quickReminderWindow?.close(); return true; });
   ipcMain.handle('quick-reminder:save', (_event, reminder) => {
@@ -2313,6 +2297,7 @@ app.on('before-quit', (event) => {
   event.preventDefault();
   if (shutdownCleanupStarted) return;
   shutdownCleanupStarted = true;
+  clearTraySingleClickTimer();
   scheduler?.stop();
   stopHandbookReminders();
   clearTimeout(employeePolicyTimer);

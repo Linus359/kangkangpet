@@ -104,10 +104,10 @@ test('work mode turns pet interactions into handbook tip controls by default', (
   assert.match(petHtml, /createMenuGroup\(workModeEnabled \? '💡' : '🧸', workModeEnabled \? '员工守则小贴士' : '陪康康玩'\)/);
   assert.match(petHtml, /createMenuGroup\('💼', '工作模式'\)/);
   assert.match(petHtml, /'随机来一条小贴士'/);
-  assert.match(petHtml, /'今日员工守则'/);
+  assert.doesNotMatch(petHtml, /'今日员工守则'/);
   assert.match(petHtml, /'继续阅读上一条'/);
   assert.match(petHtml, /config\?\.workModeEnabled !== false \? '休息一下' : '开始工作'/);
-  assert.match(petHtml, /await desktopPetApi\.showPolicyTip\(\)/);
+  assert.match(petHtml, /await desktopPetApi\.showHandbookTip\(\{ interactive: true \}\)/);
   assert.match(petHtml, /suppressIdleMessage: true/);
   assert.match(petHtml, /interactionButtons\.filter\(\(item\) => item\.id !== 'work'\)/);
   assert.match(petHtml, /await desktopPetApi\.toggleWorkMode\(\)/);
@@ -165,11 +165,15 @@ test('double-click remains a functional FORCOME AI entry during do-not-disturb m
   assert.match(petHtml, /clearTimeout\(singleClickTimer\);/);
 });
 
-test('manual handbook menu tips bypass the body single-click gate', () => {
+test('manual and body handbook tips interrupt the current bubble', () => {
   const manualTip = petHtml.match(/async function showHandbookTip\(\) \{[\s\S]*?\n    \}/)?.[0] || '';
-  assert.doesNotMatch(manualTip, /beginWorkModeDifyRequest/);
-  assert.match(manualTip, /desktopPetApi\.showHandbookTip\(\{ interactive: false \}\)/);
+  assert.match(manualTip, /desktopPetApi\.showHandbookTip\(\{ interactive: true \}\)/);
+  const replayTip = petHtml.match(/async function replayHandbookTip\(\) \{[\s\S]*?\n    \}/)?.[0] || '';
+  assert.doesNotMatch(replayTip, /beginWorkModeDifyRequest|settleWorkModeDifyRequest/);
+  assert.match(replayTip, /await desktopPetApi\.replayHandbookTip\(\)/);
   const bodyInteraction = petHtml.match(/async function interact\(source\)[\s\S]*?\n    \}/)?.[0] || '';
-  assert.match(bodyInteraction, /if \(workModeEnabled && !beginWorkModeDifyRequest\(\)\) return;/);
-  assert.match(bodyInteraction, /await desktopPetApi\.showPolicyTip\(\)/);
+  assert.doesNotMatch(bodyInteraction, /beginWorkModeDifyRequest|showPolicyTip|settleWorkModeDifyRequest/);
+  assert.match(bodyInteraction, /await desktopPetApi\.showHandbookTip\(\{ interactive: true \}\)/);
+  assert.match(petHtml, /function showInteractiveReminderImmediately\(reminder\)/);
+  assert.match(petHtml, /if \(reminder\.employeePolicyInteractive === true\) showInteractiveReminderImmediately\(reminder\)/);
 });

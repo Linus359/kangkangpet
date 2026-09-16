@@ -104,7 +104,14 @@ test('opens the configured PWA through the main process with browser fallback', 
 test('uses one CLI-centered tray with live status and automatic reconnect', () => {
   assert.match(mainSource, /function forcomeStatusLabel\(/);
   assert.match(mainSource, /FORCOME_RECONNECT_DELAYS_MS = \[5000, 15000, 30000, 60000, 120000\]/);
-  assert.match(mainSource, /tray\.on\('click', \(\) => openConfiguredPwa\(\)\)/);
+  assert.match(mainSource, /const TRAY_DOUBLE_CLICK_WINDOW_MS = 600;/);
+  assert.match(mainSource, /function togglePetVisibility\(\) \{[\s\S]*?isVisible\(\)[\s\S]*?hidePet\(\)[\s\S]*?showPet\(\)/);
+  assert.match(mainSource, /function handleTraySingleClick\(\) \{[\s\S]*?setTimeout\(\(\) => \{[\s\S]*?togglePetVisibility\(\)[\s\S]*?\}, TRAY_DOUBLE_CLICK_WINDOW_MS\)/);
+  const traySingleClick = mainSource.match(/function handleTraySingleClick\(\)[\s\S]*?\n\}/)?.[0] || '';
+  assert.doesNotMatch(traySingleClick, /openConfiguredPwa/);
+  assert.match(mainSource, /function handleTrayDoubleClick\(\) \{[\s\S]*?clearTraySingleClickTimer\(\)[\s\S]*?createPanelWindow\(\)/);
+  assert.match(mainSource, /tray\.on\('click', handleTraySingleClick\)/);
+  assert.match(mainSource, /tray\.on\('double-click', handleTrayDoubleClick\)/);
   assert.match(mainSource, /label: '康康熊桌宠与提醒', submenu:/);
   assert.match(mainSource, /fs\.watchFile\(forcomeStatusWatchPath/);
   assert.doesNotMatch(mainSource, /\.openTray\(/);

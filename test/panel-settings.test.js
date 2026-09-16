@@ -25,6 +25,7 @@ test('panel exposes the exchange-rate tool and optional onboarding date', () => 
   assert.match(panelHtml, /id="exchangeBase"/);
   assert.match(panelHtml, /id="exchangeQuote"/);
   assert.match(panelHtml, /id="exchangeRefresh"/);
+  for (const code of ['CAD', 'AUD', 'NZD', 'CHF', 'KRW', 'SGD', 'INR', 'TWD', 'THB', 'MYR', 'IDR', 'PHP', 'VND', 'SEK', 'NOK', 'DKK', 'PLN', 'TRY', 'BRL', 'MXN', 'ZAR', 'AED', 'SAR']) assert.match(panelHtml, new RegExp(`'${code}'`));
   assert.match(panelHtml, /getExchangeRate\(\{ base: exchangeBase\.value, quote: exchangeQuote\.value \}\)/);
   assert.match(panelHtml, /id="newStaffStartDate"/);
   assert.match(panelHtml, /newStaffProfile: \{ onboardingStartDate \}/);
