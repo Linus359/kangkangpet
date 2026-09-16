@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('panelApi', {
   checkForUpdates: () => ipcRenderer.invoke('app:check-for-updates'),
   getReleaseNotes: () => ipcRenderer.invoke('app:get-release-notes'),
   getForcomeCliStatus: () => ipcRenderer.invoke('forcome-cli:get-status'),
+  checkForcomeCliUpdates: () => ipcRenderer.invoke('forcome-cli:check-updates'),
+  openForcomeCliLogs: () => ipcRenderer.invoke('forcome-cli:open-logs'),
   loginForcomeCli: (options) => ipcRenderer.invoke('forcome-cli:login', options),
   openForcomeAi: () => ipcRenderer.invoke('pet:open-pwa'),
   startForcomeConnector: () => ipcRenderer.invoke('forcome-cli:start'),
@@ -31,5 +33,6 @@ contextBridge.exposeInMainWorld('panelApi', {
   onForcomeCliStatus: (callback) => ipcRenderer.on('forcome-cli:status', (_event, status) => callback(status)),
   getChinaHolidays: (year) => ipcRenderer.invoke('china-holidays:get', year),
   getUSHolidays: (year) => ipcRenderer.invoke('us-holidays:get', year),
+  getExchangeRate: (request) => ipcRenderer.invoke('exchange-rate:get', request),
   onOpenTab: (callback) => ipcRenderer.on('panel:open-tab', (_event, tab) => callback(tab))
 });

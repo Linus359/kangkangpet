@@ -10,6 +10,7 @@ const { pathToFileURL } = require('url');
 const { ConfigStore } = require('./src/main/config-store');
 const { NOTE_VERSION, NotesStore, normalizeNote } = require('./src/main/notes-store');
 const { DEFAULT_PWA_CONFIG, normalizePwaConfig, openPwa } = require('./src/main/pwa-launcher');
+const { ExchangeRateService } = require('./src/main/exchange-rate-service');
 const { DEFAULT_TIME_ZONES, normalizeAnniversaries, normalizeCalendarViewMode, normalizeTimeZones } = require('./src/main/productivity-tools');
 const { ChinaHolidayService } = require('./src/main/holiday-service');
 const { USHolidayService } = require('./src/main/us-holiday-service');
@@ -39,6 +40,10 @@ app.commandLine.appendSwitch('disable-features', 'WebGPU,Vulkan,DefaultANGLEVulk
 
 const APP_NAME = '康康熊桌宠';
 const APP_ID = 'com.forcome.kangkangpet';
+const PANEL_DEFAULT_WIDTH = 1040;
+const PANEL_DEFAULT_HEIGHT = 780;
+const PANEL_MIN_WIDTH = 860;
+const PANEL_MIN_HEIGHT = 620;
 const RELEASE_NOTES_URL = 'https://api.github.com/repos/Linus359/kangkangpet/releases?per_page=100';
 const ASSET_DIR_NAME = 'cat';
 const ALLOWED_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.webm', '.mp4', '.mov', '.gif']);
@@ -125,6 +130,7 @@ let logger;
 let scheduler;
 let holidayService;
 let usHolidayService;
+let exchangeRateService;
 let forcomeCli;
 let petWindow;
 let panelWindow;
@@ -528,6 +534,7 @@ function ensureStorage() {
   notesStore = new NotesStore(path.join(userData, 'notes.json'), { log: writeLog });
   holidayService = new ChinaHolidayService({ cachePath: path.join(userData, 'china-holiday-cache.json'), log: writeLog });
   usHolidayService = new USHolidayService({ cachePath: path.join(userData, 'us-holiday-cache.json'), log: writeLog });
+  exchangeRateService = new ExchangeRateService();
   employeePolicyPaths = {
     localPath: path.join(userData, 'employee-policy-local.json'),
     cachePath: path.join(userData, 'employee-policy-cache.json'),
@@ -538,10 +545,21 @@ function ensureStorage() {
 }
 
 function visiblePanelBounds(bounds) {
-  const normalized = normalizeBounds(bounds) || { width: 1040, height: 780 };
-  const displays = screen.getAllDisplays();
-  const primaryWorkArea = screen.getPrimaryDisplay().workArea;
-  return ensureWindowBoundsVisible(normalized, displays, primaryWorkArea);
+  const normalized = normalizeBounds(bounds) || { width: PANEL_DEFAULT_WIDTH, height: PANEL_DEFAULT_HEIGHT };
+  const hasPosition = Number.isFinite(normalized.x) && Number.isFinite(normalized.y);
+  const display = hasPosition ? screen.getDisplayMatching(normalized) : screen.getPrimaryDisplay();
+  const workArea = display?.workArea || screen.getPrimaryDisplay().workArea;
+  const minWidth = Math.min(PANEL_MIN_WIDTH, workArea.width);
+  const minHeight = Math.min(PANEL_MIN_HEIGHT, workArea.height);
+  const maxWidth = Math.max(minWidth, workArea.width - 24);
+  const maxHeight = Math.max(minHeight, workArea.height - 24);
+  const width = Math.min(maxWidth, Math.max(minWidth, normalized.width));
+  const height = Math.min(maxHeight, Math.max(minHeight, normalized.height));
+  const defaultX = workArea.x + Math.round((workArea.width - width) / 2);
+  const defaultY = workArea.y + Math.round((workArea.height - height) / 2);
+  const x = hasPosition ? Math.max(workArea.x, Math.min(normalized.x, workArea.x + workArea.width - width)) : defaultX;
+  const y = hasPosition ? Math.max(workArea.y, Math.min(normalized.y, workArea.y + workArea.height - height)) : defaultY;
+  return { x: Math.round(x), y: Math.round(y), width: Math.round(width), height: Math.round(height) };
 }
 
 function restorePanelToVisibleArea() {
@@ -688,6 +706,7 @@ function publicConfig() {
   const { employeePolicy: _employeePolicy, ...rendererConfig } = config;
   return {
     ...rendererConfig,
+    newStaffProfile: employeePolicyProfile(),
     pwa: { ...rendererConfig.pwa, launchCommand: null },
     assets: rendererConfig.assets.map((asset) => ({ ...asset, fileUrl: asset.path && fs.existsSync(asset.path) ? pathToFileURL(asset.path).toString() : null })),
     reminders: rendererConfig.reminders.filter((reminder) => reminder.managedBy !== EMPLOYEE_POLICY_MANAGER).map((reminder) => ({
@@ -862,8 +881,8 @@ function createPanelWindow(tab = null) {
   panelWindow = new BrowserWindow({
     ...bounds,
     show: true,
-    minWidth: 760,
-    minHeight: 560,
+    minWidth: PANEL_MIN_WIDTH,
+    minHeight: PANEL_MIN_HEIGHT,
     title: `${APP_NAME}控制面板`,
     icon: appIconPath() || undefined,
     backgroundColor: '#f6f4ef',
@@ -915,11 +934,52 @@ function effectiveEmployeePolicy() {
   return loadEffectivePolicy({ ...employeePolicyPaths, sourceMode: config.employeePolicy.sourceMode });
 }
 
+const NEW_STAFF_WINDOW_DAYS = 90;
+
+function newStaffStatus(now = new Date()) {
+  const value = config?.employeePolicy?.onboardingStartDate;
+  if (!value) return { configured: false, active: false, day: null, remainingDays: null };
+  const [year, month, day] = String(value).split('-').map(Number);
+  const start = new Date(year, month - 1, day);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (!Number.isFinite(start.getTime()) || start.getFullYear() !== year || start.getMonth() !== month - 1 || start.getDate() !== day) {
+    return { configured: false, active: false, day: null, remainingDays: null };
+  }
+  const elapsedDays = Math.floor((today.getTime() - start.getTime()) / 86400000);
+  const dayNumber = elapsedDays + 1;
+  return {
+    configured: true,
+    active: elapsedDays >= 0 && elapsedDays < NEW_STAFF_WINDOW_DAYS,
+    day: dayNumber,
+    remainingDays: Math.max(0, NEW_STAFF_WINDOW_DAYS - dayNumber + 1)
+  };
+}
+
+function employeePolicyProfile() {
+  const status = newStaffStatus();
+  return {
+    onboardingStartDate: config?.employeePolicy?.onboardingStartDate || null,
+    newStaffWindowDays: NEW_STAFF_WINDOW_DAYS,
+    newStaffActive: status.active,
+    newStaffDay: status.day,
+    newStaffRemainingDays: status.remainingDays
+  };
+}
+
+function isNewStaffRule(ruleKey) {
+  const value = String(ruleKey || '').toLowerCase();
+  return value.startsWith('new_staff_') || value.startsWith('tip_new_staff_') || value.includes('_new_staff_');
+}
+
+function isEmployeePolicyRuleEligible(rule, now = new Date()) {
+  return !isNewStaffRule(rule?.ruleKey) || newStaffStatus(now).active;
+}
+
 function applyStoredEmployeePolicy() {
   const effective = effectiveEmployeePolicy();
   const policy = {
     ...effective.policy,
-    reminders: effective.policy.reminders.map((reminder) => ({ ...reminder, enabled: config.employeePolicy.enabled && reminder.enabled && !isHandbookSprinkleRule(reminder.ruleKey) }))
+    reminders: effective.policy.reminders.map((reminder) => ({ ...reminder, enabled: config.employeePolicy.enabled && reminder.enabled && !isHandbookSprinkleRule(reminder.ruleKey) && isEmployeePolicyRuleEligible(reminder) }))
   };
   config.reminders = normalizeReminders(mergeEmployeePolicyReminders(config.reminders, policy, effective));
   config.employeePolicy.currentSource = effective.sourceKind;
@@ -1042,9 +1102,9 @@ function handbookTipPool(now, requireCurrentWeekday = true) {
   const cachedTips = rules.filter((rule) => isHandbookSprinkleRule(rule.ruleKey));
   const tipSource = Array.from(new Map([...defaultTips, ...cachedTips].map((rule) => [rule.ruleKey, rule])).values());
   if (tipSource.length) {
-    return tipSource.filter((rule) => rule?.enabled === true && (!requireCurrentWeekday || (Array.isArray(rule.weekdays) && rule.weekdays.includes(day))));
+    return tipSource.filter((rule) => rule?.enabled === true && isEmployeePolicyRuleEligible(rule, now) && (!requireCurrentWeekday || (Array.isArray(rule.weekdays) && rule.weekdays.includes(day))));
   }
-  return rules.filter((rule) => rule?.enabled === true && (!requireCurrentWeekday || (Array.isArray(rule.weekdays) && rule.weekdays.includes(day))) && Number(String(rule.time || '').split(':')[1]) !== 0);
+  return rules.filter((rule) => rule?.enabled === true && isEmployeePolicyRuleEligible(rule, now) && (!requireCurrentWeekday || (Array.isArray(rule.weekdays) && rule.weekdays.includes(day))) && Number(String(rule.time || '').split(':')[1]) !== 0);
 }
 
 function handbookSprinkleCandidates(now) {
@@ -1057,7 +1117,7 @@ function handbookPolicyPool(now, requireCurrentWeekday = true) {
   try { effective = effectiveEmployeePolicy(); } catch { return []; }
   const day = handbookWeekdayIndex(now);
   return (Array.isArray(effective.policy.reminders) ? effective.policy.reminders : [])
-    .filter((rule) => rule?.enabled === true && (!requireCurrentWeekday || (Array.isArray(rule.weekdays) && rule.weekdays.includes(day))));
+    .filter((rule) => rule?.enabled === true && isEmployeePolicyRuleEligible(rule, now) && (!requireCurrentWeekday || (Array.isArray(rule.weekdays) && rule.weekdays.includes(day))));
 }
 
 async function notifyHandbookTip(rule, { replay = false, interactive = false } = {}) {
@@ -1237,7 +1297,7 @@ async function syncEmployeePolicy() {
       writeJsonAtomic(employeePolicyPaths.cachePath, result.policy);
       const policy = {
         ...result.policy,
-        reminders: result.policy.reminders.map((reminder) => ({ ...reminder, enabled: config.employeePolicy.enabled && reminder.enabled && !isHandbookSprinkleRule(reminder.ruleKey) }))
+        reminders: result.policy.reminders.map((reminder) => ({ ...reminder, enabled: config.employeePolicy.enabled && reminder.enabled && !isHandbookSprinkleRule(reminder.ruleKey) && isEmployeePolicyRuleEligible(reminder) }))
       };
       config.reminders = normalizeReminders(mergeEmployeePolicyReminders(config.reminders, policy, { sourceKind: 'dify', sourceRevision }));
       config.employeePolicy.currentSource = 'dify';
@@ -1739,6 +1799,13 @@ function applyConfigPatch(patch) {
     const employeePatch = input.employeePolicy && typeof input.employeePolicy === 'object' ? input.employeePolicy : {};
     next.employeePolicy = normalizePolicySettings({ ...config.employeePolicy, ...employeePatch });
   }
+  if (Object.prototype.hasOwnProperty.call(input, 'newStaffProfile')) {
+    const profilePatch = input.newStaffProfile && typeof input.newStaffProfile === 'object' ? input.newStaffProfile : {};
+    next.employeePolicy = normalizePolicySettings({
+      ...config.employeePolicy,
+      onboardingStartDate: profilePatch.onboardingStartDate
+    });
+  }
   if (Object.prototype.hasOwnProperty.call(input, 'responses')) next.responses = asList(input.responses, config.responses);
   if (Object.prototype.hasOwnProperty.call(input, 'idleMessages')) next.idleMessages = asList(input.idleMessages, config.idleMessages);
   if (Object.prototype.hasOwnProperty.call(input, 'interactionButtons')) next.interactionButtons = sanitizeRendererButtons(input.interactionButtons);
@@ -1747,7 +1814,9 @@ function applyConfigPatch(patch) {
   const oldAutoLaunch = config.autoLaunch;
   const oldCliAutoReconnect = config.cliAutoReconnect;
   config = normalizeConfig(next);
-  const policyChanged = JSON.stringify(config.employeePolicy) !== JSON.stringify(next.employeePolicy) || Object.prototype.hasOwnProperty.call(input, 'employeePolicy');
+  const policyChanged = JSON.stringify(config.employeePolicy) !== JSON.stringify(next.employeePolicy)
+    || Object.prototype.hasOwnProperty.call(input, 'employeePolicy')
+    || Object.prototype.hasOwnProperty.call(input, 'newStaffProfile');
   if (policyChanged) {
     applyStoredEmployeePolicy();
     scheduler?.reschedule('employee-policy-settings');
@@ -2057,6 +2126,18 @@ function setupIpc() {
   ipcMain.handle('app:check-for-updates', () => checkForUpdates());
   ipcMain.handle('app:get-release-notes', () => getReleaseNotes());
   ipcMain.handle('forcome-cli:get-status', () => refreshForcomeStatus());
+  ipcMain.handle('forcome-cli:check-updates', () => forcomeCli?.checkForUpdates() || { ok: false, error: 'FORCOME AI CLI 尚未初始化。' });
+  ipcMain.handle('forcome-cli:open-logs', async () => {
+    if (!forcomeCli) return { ok: false, error: 'FORCOME AI CLI 尚未初始化。' };
+    const target = forcomeCli.logTarget;
+    try { fs.mkdirSync(forcomeCli.logDirectory, { recursive: true }); } catch (error) { writeLog('创建 FORCOME AI 日志目录失败。', error); }
+    const error = await shell.openPath(target);
+    if (error) {
+      writeLog('打开 FORCOME AI 运行日志失败。', new Error(error));
+      return { ok: false, error: '无法打开 FORCOME AI 运行日志。' };
+    }
+    return { ok: true, message: '已打开 FORCOME AI 运行日志。' };
+  });
   ipcMain.handle('forcome-cli:login', (_event, options) => startForcomeLogin(options));
   ipcMain.handle('forcome-cli:start', async () => {
     const before = await refreshForcomeStatus();
@@ -2068,6 +2149,14 @@ function setupIpc() {
   ipcMain.handle('forcome-cli:stop', () => pauseForcomeConnector());
   ipcMain.handle('china-holidays:get', (_event, year) => holidayService?.getYear(year) || { year, items: [], available: false });
   ipcMain.handle('us-holidays:get', (_event, year) => usHolidayService?.getYear(year) || { year, items: [], available: false });
+  ipcMain.handle('exchange-rate:get', async (_event, request) => {
+    try {
+      return await exchangeRateService.getRate(request?.base, request?.quote);
+    } catch (error) {
+      writeLog('汇率获取失败。', error);
+      return { ok: false, error: '汇率获取失败，请稍后重试。' };
+    }
+  });
   ipcMain.handle('config:get', () => publicConfig());
   ipcMain.handle('config:update', (_event, patch) => applyConfigPatch(patch));
   ipcMain.handle('assets:upload', uploadAssets);
@@ -2075,7 +2164,7 @@ function setupIpc() {
   ipcMain.handle('panel:open', (_event, tab) => { createPanelWindow(typeof tab === 'string' ? tab : null); return true; });
   ipcMain.handle('quick-reminder:open', () => { createQuickReminderWindow(); return true; });
   ipcMain.handle('pet:toggle-work-mode', () => toggleWorkMode());
-  ipcMain.handle('pet:show-handbook-tip', () => triggerHandbookTipManually());
+  ipcMain.handle('pet:show-handbook-tip', (_event, options) => triggerHandbookTipManually(options && typeof options === 'object' ? options : {}));
   ipcMain.handle('pet:show-policy-tip', () => triggerHandbookPolicyTip());
   ipcMain.handle('pet:replay-handbook-tip', () => replayHandbookTip(employeePolicyReadingState.recentTips[0]));
   ipcMain.handle('quick-reminder:close', () => { quickReminderWindow?.close(); return true; });

@@ -41,9 +41,8 @@ test('reports the checked-in CLI payload without reading credential contents', (
 test('uses a portable CLI shim without a machine-specific installation path', { skip: !fs.existsSync(shimPath) }, () => {
   const shim = fs.readFileSync(shimPath, 'utf8');
   assert.match(shim, /%~dp0\.\.\\runtime\\node\.exe/i);
-  assert.match(shim, /@lobehub\\cli\\dist\\index\.js/i);
-  assert.match(shim, /IF \/I "%~1"=="connect" IF "%~2"=="" GOTO connector/i);
-  assert.match(shim, /LOBEHUB_DEVICE_GATEWAY=https:\/\/ai\.forcome\.com\/device-gateway/i);
+  assert.match(shim, /@forcome\\ai-cli\\bin\\fai\.js/i);
+  assert.match(shim, /SET "FORCOME_AI_CLI_HOME=%~dp0\.\."/i);
   assert.doesNotMatch(shim, /C:\\Users\\/i);
   assert.doesNotMatch(shim, /AppData\\Local\\ForcomeAI/i);
 });
@@ -87,4 +86,36 @@ test('starts browser login through the CLI without launching its second visual t
   assert.equal(invocation.options.shell, false);
   assert.equal(invocation.options.windowsHide, true);
   assert.ok(!invocation.args.includes('--show'));
+});
+
+test('checks the bundled CLI self-updater and returns safe version information', async () => {
+  let invocation;
+  const manager = new ForcomeCliManager({
+    appRoot: root,
+    resourcesPath: '',
+    isPackaged: false,
+    fsImpl: bundledFs,
+    execFileImpl: (file, args, options, callback) => {
+      invocation = { file, args, options };
+      callback(null, '[Forcome AI] 当前 0.2.2（npm 安装），检查 manifest …\n[Forcome AI] 有新版本 0.2.3。\n', '');
+    }
+  });
+  const result = await manager.checkForUpdates();
+  assert.equal(invocation.file, manager.paths.node);
+  assert.deepEqual(invocation.args, [manager.paths.entry, 'update', '--check']);
+  assert.equal(invocation.options.shell, undefined);
+  assert.equal(result.ok, true);
+  assert.equal(result.currentVersion, '0.2.2');
+  assert.equal(result.latestVersion, '0.2.3');
+  assert.equal(result.updateAvailable, true);
+});
+
+test('selects the active bundled connector log for the runtime-log shortcut', () => {
+  const manager = new ForcomeCliManager({
+    appRoot: root,
+    resourcesPath: '',
+    isPackaged: false,
+    fsImpl: bundledFs
+  });
+  assert.match(manager.logTarget, /\.lobehub[\\/]connector\.log$/i);
 });

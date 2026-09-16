@@ -155,6 +155,21 @@ test('do-not-disturb mode suppresses pet chatter, idle actions and interaction c
 
 test('double-click remains a functional FORCOME AI entry during do-not-disturb mode', () => {
   const handler = petHtml.match(/stage\.addEventListener\('dblclick',[\s\S]*?\n    \}\);/)?.[0] || '';
-  assert.match(handler, /desktopPetApi\.openPwa\(\)/);
+  const opener = petHtml.match(/async function openPwaFromPet\(\)[\s\S]*?\n    \}/)?.[0] || '';
+  assert.match(handler, /openPwaFromPet\(\)/);
+  assert.match(opener, /desktopPetApi\.openPwa\(\)/);
   assert.doesNotMatch(handler, /doNotDisturbMode/);
+  assert.match(petHtml, /const PET_DOUBLE_CLICK_WINDOW_MS = 600;/);
+  assert.match(petHtml, /event\.detail >= 2/);
+  assert.match(petHtml, /function openPwaFromPet\(\)/);
+  assert.match(petHtml, /clearTimeout\(singleClickTimer\);/);
+});
+
+test('manual handbook menu tips bypass the body single-click gate', () => {
+  const manualTip = petHtml.match(/async function showHandbookTip\(\) \{[\s\S]*?\n    \}/)?.[0] || '';
+  assert.doesNotMatch(manualTip, /beginWorkModeDifyRequest/);
+  assert.match(manualTip, /desktopPetApi\.showHandbookTip\(\{ interactive: false \}\)/);
+  const bodyInteraction = petHtml.match(/async function interact\(source\)[\s\S]*?\n    \}/)?.[0] || '';
+  assert.match(bodyInteraction, /if \(workModeEnabled && !beginWorkModeDifyRequest\(\)\) return;/);
+  assert.match(bodyInteraction, /await desktopPetApi\.showPolicyTip\(\)/);
 });

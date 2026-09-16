@@ -28,6 +28,7 @@ const DEFAULT_EMPLOYEE_POLICY = {
 const DEFAULT_EMPLOYEE_POLICY_SETTINGS = {
   enabled: true,
   sprinkleEnabled: true,
+  onboardingStartDate: null,
   sourceMode: 'dify',
   baseUrl: DEFAULT_DIFY_BASE_URL,
   allowInsecureHttp: false,
@@ -37,6 +38,14 @@ const DEFAULT_EMPLOYEE_POLICY_SETTINGS = {
   lastAttemptAt: null,
   errorCode: null
 };
+
+function normalizeOnboardingStartDate(value) {
+  const text = typeof value === 'string' ? value.trim() : '';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return null;
+  const [year, month, day] = text.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? text : null;
+}
 
 class PolicySyncError extends Error {
   constructor(code) {
@@ -63,6 +72,7 @@ function normalizePolicySettings(value = {}) {
     ...source,
     enabled: source.enabled !== false,
     sprinkleEnabled: source.sprinkleEnabled !== false,
+    onboardingStartDate: normalizeOnboardingStartDate(source.onboardingStartDate),
     sourceMode: source.sourceMode === 'local' ? 'local' : 'dify',
     baseUrl: usesLegacyDefault ? DEFAULT_DIFY_BASE_URL : configuredBaseUrl || DEFAULT_DIFY_BASE_URL,
     allowInsecureHttp: usesLegacyDefault ? false : source.allowInsecureHttp === true,

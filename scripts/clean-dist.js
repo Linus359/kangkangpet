@@ -25,6 +25,14 @@ function archiveHistoricalSetup(entry) {
   return true;
 }
 
+function removeEmptyDirectories(directory) {
+  if (!fs.existsSync(directory)) return;
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    if (entry.isDirectory()) removeEmptyDirectories(path.join(directory, entry.name));
+  }
+  if (fs.readdirSync(directory).length === 0 && directory !== setupArchiveDir) fs.rmdirSync(directory);
+}
+
 if (fs.existsSync(distDir)) {
   for (const entry of fs.readdirSync(distDir, { withFileTypes: true })) {
     if (!entry.isFile()) continue;
@@ -35,6 +43,8 @@ if (fs.existsSync(distDir)) {
     if (entry.name === 'cli' || entry.name === 'setups' || entry.name === currentPortableDirectory || currentArtifacts.has(entry.name)) continue;
     fs.rmSync(path.join(distDir, entry.name), { recursive: true, force: true });
   }
+
+  removeEmptyDirectories(setupArchiveDir);
 }
 
 console.log(`dist cleanup complete: kept dist/cli, dist/setups, and ${packageJson.version} installer artifacts.`);

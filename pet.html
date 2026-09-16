@@ -438,6 +438,7 @@
     const BUBBLE_ALPHA_THRESHOLD = 48;
     const BUBBLE_BODY_GAP = 10;
     const BUBBLE_TRANSITION_MS = 240;
+    const PET_DOUBLE_CLICK_WINDOW_MS = 600;
 
     function isEmployeePolicyReminder(reminder) {
       return reminder?.managedBy === 'employee-policy';
@@ -1492,10 +1493,8 @@
     }
 
     async function showHandbookTip() {
-      if (!beginWorkModeDifyRequest()) return;
       playAction('think', { animate: true, interaction: true, suppressIdleMessage: true });
-      const result = await desktopPetApi.showHandbookTip();
-      settleWorkModeDifyRequest(result);
+      await desktopPetApi.showHandbookTip({ interactive: false });
     }
 
     async function showPolicyTip() {
@@ -1582,6 +1581,11 @@
       if (event.button !== 0 || event.target.closest('.no-drag')) return;
       if (!petHitTest(event.clientX, event.clientY)) return;
       event.preventDefault();
+      const pressAt = Date.now();
+      if (petClickAt && pressAt - petClickAt <= PET_DOUBLE_CLICK_WINDOW_MS) {
+        clearTimeout(singleClickTimer);
+        singleClickTimer = null;
+      }
       dragState = {
         startClientX: event.clientX,
         startClientY: event.clientY,
@@ -1590,6 +1594,18 @@
     });
 
     let singleClickTimer = null;
+    let petClickAt = 0;
+    let lastPwaOpenAt = 0;
+    async function openPwaFromPet() {
+      const now = Date.now();
+      if (now - lastPwaOpenAt < PET_DOUBLE_CLICK_WINDOW_MS) return;
+      lastPwaOpenAt = now;
+      clearTimeout(singleClickTimer);
+      singleClickTimer = null;
+      petClickAt = 0;
+      const result = await desktopPetApi.openPwa();
+      showMessage(result.message || '未能打开目标应用。');
+    }
     stage.addEventListener('click', (event) => {
       if (event.target.closest('.no-drag')) return;
       if (!petHitTest(event.clientX, event.clientY)) return;
@@ -1597,15 +1613,26 @@
         suppressPetClick = false;
         return;
       }
+      if (event.detail >= 2) {
+        void openPwaFromPet();
+        return;
+      }
+      const clickAt = Date.now();
+      petClickAt = clickAt;
       clearTimeout(singleClickTimer);
-      singleClickTimer = setTimeout(() => interact(), 220);
+      singleClickTimer = setTimeout(() => {
+        if (petClickAt !== clickAt) return;
+        petClickAt = 0;
+        singleClickTimer = null;
+        void interact();
+      }, PET_DOUBLE_CLICK_WINDOW_MS);
     });
 
     stage.addEventListener('dblclick', async (event) => {
       if (event.target.closest('.no-drag') || !petHitTest(event.clientX, event.clientY)) return;
-      clearTimeout(singleClickTimer);
-      const result = await desktopPetApi.openPwa();
-      showMessage(result.message || '未能打开目标应用。');
+      event.preventDefault();
+      event.stopPropagation();
+      await openPwaFromPet();
     });
 
     window.addEventListener('mousemove', async (event) => {

@@ -112,6 +112,13 @@ test('uses one CLI-centered tray with live status and automatic reconnect', () =
   assert.match(panelSource, /CLI 离线自动重连/);
   assert.match(panelSource, /低资源模式（推荐）/);
   assert.match(panelPreloadSource, /loginForcomeCli: \(options\) => ipcRenderer\.invoke\('forcome-cli:login', options\)/);
+  assert.match(mainSource, /ipcMain\.handle\('forcome-cli:check-updates'/);
+  assert.match(panelPreloadSource, /checkForcomeCliUpdates: \(\) => ipcRenderer\.invoke\('forcome-cli:check-updates'\)/);
+  assert.match(mainSource, /ipcMain\.handle\('forcome-cli:open-logs'/);
+  assert.match(panelPreloadSource, /openForcomeCliLogs: \(\) => ipcRenderer\.invoke\('forcome-cli:open-logs'\)/);
+  assert.match(panelSource, /id="openForcomeCliLogs"/);
+  assert.match(panelSource, /运行日志/);
+  assert.doesNotMatch(panelSource, /forcomeCliAccount|forcomeCliDevices|forcomeCliAgents|forcomeCliProviders|forcome-cli:account|forcome-cli:devices|forcome-cli:agents|forcome-cli:providers/);
   assert.doesNotMatch(mainSource, /label: '开机自动启动', type: 'checkbox'/);
   assert.match(panelSource, /id="autoLaunch" type="checkbox"/);
 });

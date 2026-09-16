@@ -54,6 +54,10 @@ function execFilePromise(file, args, options = {}, execFileImpl = execFile) {
   });
 }
 
+function stripAnsi(value) {
+  return String(value || '').replace(/[\u001B\u009B][[\]()#;?]*(?:(?:(?:[a-zA-Z\d]*(?:;[-a-zA-Z\d\/#&.:=?%c])*[\dA-PR-TZcf-nq-uy=><~]))|(?:.*?(?:\u001B\\|\u009C)))/g, '');
+}
+
 class ForcomeCliManager {
   constructor({ appRoot, resourcesPath, isPackaged, homeDir = os.homedir(), fsImpl = fs, spawnImpl = spawn, execFileImpl = execFile, log = () => {}, onProcessExit = () => {} }) {
     this.paths = resolveForcomeCliPaths({ appRoot, resourcesPath, isPackaged });
@@ -72,6 +76,16 @@ class ForcomeCliManager {
 
   get daemonStatusPath() {
     return path.join(this.homeDir, '.lobehub', 'daemon.status.json');
+  }
+
+  get logDirectory() {
+    return path.join(this.homeDir, '.lobehub');
+  }
+
+  get logTarget() {
+    const candidates = ['connector.log', 'tray.log', 'daemon.log', 'install.log']
+      .map((name) => path.join(this.logDirectory, name));
+    return candidates.find((candidate) => fileExists(candidate, this.fs)) || this.logDirectory;
   }
 
   get missingFiles() {
@@ -198,6 +212,36 @@ class ForcomeCliManager {
       this.log('启动 FORCOME AI 登录失败。', error);
       return { ok: false, error: error.message };
     }
+  }
+
+  async checkForUpdates() {
+    const info = this.staticInfo();
+    if (!info.available) return { ok: false, error: `CLI 文件不完整：${info.missingFiles.join('、')}` };
+    const result = await execFilePromise(this.paths.node, [this.paths.entry, 'update', '--check'], {
+      cwd: this.paths.root,
+      env: { ...process.env },
+      encoding: 'utf8',
+      timeout: 15000,
+      maxBuffer: 256 * 1024,
+      windowsHide: true
+    }, this.execFile);
+    const output = stripAnsi(`${result.stdout}\n${result.stderr}`).trim();
+    const currentVersion = output.match(/当前\s+v?([0-9]+\.[0-9]+\.[0-9]+)/i)?.[1] || info.version;
+    const latestVersion = output.match(/有新版本\s+v?([0-9]+\.[0-9]+\.[0-9]+)/i)?.[1]
+      || output.match(/已是最新版本[（(]清单\s*v?([0-9]+\.[0-9]+\.[0-9]+)/i)?.[1]
+      || currentVersion;
+    const updateAvailable = /有新版本/.test(output);
+    if (!result.ok) {
+      this.log('检查 FORCOME AI CLI 更新失败。', result.error || new Error(output || 'unknown error'));
+      return { ok: false, currentVersion, latestVersion: null, updateAvailable: false, error: '检查 CLI 更新失败，请稍后重试。' };
+    }
+    return {
+      ok: true,
+      currentVersion,
+      latestVersion,
+      updateAvailable,
+      message: updateAvailable ? `发现 CLI 新版本 v${latestVersion}，可在终端执行 fai update。` : `CLI 已是最新版本 v${currentVersion}。`
+    };
   }
 
   async stopConnector() {
