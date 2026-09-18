@@ -12,7 +12,7 @@ test('pet interaction animations stay on the inner motion layer', () => {
   const wiggle = petHtml.match(/@keyframes wiggle\s*\{([\s\S]*?)\n    \}/)?.[1] || '';
   assert.match(petHtml, /<section id="petWrap"[\s\S]*?<div id="petMotion">/);
   assert.match(petHtml, /const petMotion = document\.querySelector\('#petMotion'\);/);
-  assert.match(petHtml, /petMotion\.classList\.remove\('bounce', 'wiggle'\)/);
+  assert.match(petHtml, /petMotion\.classList\.remove\('bounce', 'wiggle', 'hammer-hit'\)/);
   assert.equal(bounce.includes('translateX(-50%)'), false);
   assert.equal(wiggle.includes('translateX(-50%)'), false);
   assert.match(petHtml, /#petWrap \{[\s\S]*?transform: translateX\(-50%\);[\s\S]*?\}/);
@@ -101,7 +101,7 @@ test('work mode turns pet interactions into handbook tip controls by default', (
   assert.match(petHtml, /let interactionMenuSignature = '';/);
   assert.match(petHtml, /if \(nextMenuSignature !== interactionMenuSignature\) \{[\s\S]*?renderInteractionMenus\(\);/);
   assert.match(petHtml, /const workModeEnabled = config\?\.workModeEnabled !== false;/);
-  assert.match(petHtml, /createMenuGroup\(workModeEnabled \? '💡' : '🧸', workModeEnabled \? '员工守则小贴士' : '陪康康玩'\)/);
+  assert.match(petHtml, /createMenuGroup\(workModeEnabled \? '💡' : '🧸', workModeEnabled \? '员工守则小贴士' : '陪康康玩', handlePlayMenuTriggerClick\)/);
   assert.match(petHtml, /createMenuGroup\('💼', '工作模式'\)/);
   assert.match(petHtml, /'随机来一条小贴士'/);
   assert.doesNotMatch(petHtml, /'今日员工守则'/);
@@ -158,11 +158,31 @@ test('double-click remains a functional FORCOME AI entry during do-not-disturb m
   const opener = petHtml.match(/async function openPwaFromPet\(\)[\s\S]*?\n    \}/)?.[0] || '';
   assert.match(handler, /openPwaFromPet\(\)/);
   assert.match(opener, /desktopPetApi\.openPwa\(\)/);
+  assert.match(handler, /if \(isHammerModeActive\(\)\) return;/);
+  assert.match(opener, /if \(isHammerModeActive\(\)\) return;/);
   assert.doesNotMatch(handler, /doNotDisturbMode/);
   assert.match(petHtml, /const PET_DOUBLE_CLICK_WINDOW_MS = 600;/);
   assert.match(petHtml, /event\.detail >= 2/);
   assert.match(petHtml, /function openPwaFromPet\(\)/);
   assert.match(petHtml, /clearTimeout\(singleClickTimer\);/);
+});
+
+test('rest-mode triple-click reveals the hammer interaction without exposing a new control', () => {
+  assert.match(petHtml, /#stage\.hammer-mode\.pet-hit\s*\{[\s\S]*?cursor: url\("data:image\/svg\+xml/);
+  assert.match(petHtml, /#petMotion\.hammer-hit\s*\{[\s\S]*?animation: hammer-hit/);
+  assert.match(petHtml, /const HAMMER_MODE_TRIPLE_CLICK_WINDOW_MS = 720;/);
+  assert.match(petHtml, /let hammerMenuClickCount = 0;/);
+  assert.match(petHtml, /function handlePlayMenuTriggerClick\(event, controls\)/);
+  assert.match(petHtml, /config\?\.workModeEnabled !== false/);
+  assert.match(petHtml, /hammerMenuClickCount >= 3/);
+  assert.match(petHtml, /toggleHammerMode\(\)/);
+  assert.match(petHtml, /function isHammerModeActive\(\)[\s\S]*?config\?\.workModeEnabled === false/);
+  assert.match(petHtml, /function hammerPet\(\)[\s\S]*?assetsForAction\('sad'\)/);
+  assert.match(petHtml, /playAction\(actionKey, \{[\s\S]*?animate: false,[\s\S]*?suppressIdleMessage: true/);
+  assert.match(petHtml, /animateHammerHit\(\)/);
+  assert.match(petHtml, /if \(isHammerModeActive\(\)\) \{\s*hammerPet\(\);\s*return;/);
+  assert.match(petHtml, /function animatePet\(\)[\s\S]*?petMotion\.classList\.remove\('bounce', 'wiggle', 'hammer-hit'\)/);
+  assert.match(petHtml, /if \(!hammerMode\) petMotion\.classList\.remove\('hammer-hit'\);/);
 });
 
 test('manual and body handbook tips interrupt the current bubble', () => {

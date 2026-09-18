@@ -47,6 +47,14 @@
       cursor: grab;
     }
 
+    #stage.hammer-mode.pet-hit {
+      cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cg transform='rotate(-35 16 16)'%3E%3Crect x='13' y='9' width='6' height='19' rx='2' fill='%23a86b38' stroke='%23572f1a' stroke-width='1.5'/%3E%3Crect x='5' y='4' width='22' height='9' rx='2.5' fill='%23b8783e' stroke='%23572f1a' stroke-width='1.5'/%3E%3C/g%3E%3C/svg%3E") 5 4, pointer;
+    }
+
+    #stage.hammer-mode.dragging {
+      cursor: grabbing;
+    }
+
     #stage.dragging {
       cursor: grabbing;
     }
@@ -115,6 +123,10 @@
 
     #petMotion.wiggle {
       animation: wiggle 560ms ease;
+    }
+
+    #petMotion.hammer-hit {
+      animation: hammer-hit 300ms cubic-bezier(.22, 1.15, .38, 1);
     }
 
     #video,
@@ -354,6 +366,13 @@
       60% { transform: rotate(-4deg); }
       80% { transform: rotate(3deg); }
     }
+
+    @keyframes hammer-hit {
+      0%, 100% { transform: translate(0, 0) rotate(0deg) scale(1); }
+      22% { transform: translate(-3px, 2px) rotate(-5deg) scale(.98, 1.02); }
+      48% { transform: translate(4px, -1px) rotate(5deg) scale(1.02, .97); }
+      72% { transform: translate(-2px, 1px) rotate(-3deg) scale(.99, 1.01); }
+    }
   </style>
 </head>
 <body>
@@ -428,6 +447,9 @@
     let startupPlayed = false;
     let petVisible = true;
     let performanceSuspended = false;
+    let hammerMode = false;
+    let hammerMenuClickCount = 0;
+    let lastHammerMenuClickAt = 0;
     window.currentStrongReminder = false;
     const preloadedVideos = new Map();
     const hitCanvas = document.createElement('canvas');
@@ -439,6 +461,7 @@
     const BUBBLE_BODY_GAP = 10;
     const BUBBLE_TRANSITION_MS = 240;
     const PET_DOUBLE_CLICK_WINDOW_MS = 600;
+    const HAMMER_MODE_TRIPLE_CLICK_WINDOW_MS = 720;
 
     function isEmployeePolicyReminder(reminder) {
       return reminder?.managedBy === 'employee-policy';
@@ -957,9 +980,15 @@
     bubble.addEventListener('mouseleave', resumeBubbleDismissTimer);
 
     function animatePet() {
-      petMotion.classList.remove('bounce', 'wiggle');
+      petMotion.classList.remove('bounce', 'wiggle', 'hammer-hit');
       void petMotion.offsetWidth;
       petMotion.classList.add(Math.random() > 0.5 ? 'bounce' : 'wiggle');
+    }
+
+    function animateHammerHit() {
+      petMotion.classList.remove('bounce', 'wiggle', 'hammer-hit');
+      void petMotion.offsetWidth;
+      petMotion.classList.add('hammer-hit');
     }
 
     function scheduleIdle(delay = null) {
@@ -1066,6 +1095,73 @@
       const responses = button?.responses?.length ? button.responses : config?.responses;
       const text = pick(responses, '喵。');
       playAction(selectedAction, { asset: selectedAsset, message: text, animate: true, interaction: true });
+    }
+
+    function isHammerModeActive() {
+      return hammerMode && config?.workModeEnabled === false && !config?.doNotDisturbMode;
+    }
+
+    function syncHammerModePresentation() {
+      const active = isHammerModeActive();
+      stage.classList.toggle('hammer-mode', active);
+      const trigger = buttons.querySelector('.interaction-group:first-child > .pet-button');
+      if (!trigger) return;
+      if (config?.workModeEnabled === false) trigger.setAttribute('aria-pressed', String(active));
+      else trigger.removeAttribute('aria-pressed');
+      trigger.setAttribute('aria-label', active ? '陪康康玩，暴打模式已开启' : (config?.workModeEnabled === false ? '陪康康玩' : '员工守则小贴士'));
+    }
+
+    function toggleHammerMode() {
+      hammerMode = !hammerMode;
+      hammerMenuClickCount = 0;
+      lastHammerMenuClickAt = 0;
+      if (!hammerMode) petMotion.classList.remove('hammer-hit');
+      closeInteractionMenus();
+      syncHammerModePresentation();
+    }
+
+    function handlePlayMenuTriggerClick(event, controls) {
+      if (config?.workModeEnabled !== false) {
+        hammerMenuClickCount = 0;
+        lastHammerMenuClickAt = 0;
+        controls.setOpen(!controls.group.classList.contains('menu-open'));
+        return;
+      }
+
+      const now = Date.now();
+      hammerMenuClickCount = now - lastHammerMenuClickAt <= HAMMER_MODE_TRIPLE_CLICK_WINDOW_MS
+        ? hammerMenuClickCount + 1
+        : 1;
+      lastHammerMenuClickAt = now;
+      if (hammerMenuClickCount >= 3) {
+        toggleHammerMode();
+        return;
+      }
+
+      controls.setOpen(!controls.group.classList.contains('menu-open'));
+    }
+
+    function hammerPet() {
+      if (!isHammerModeActive()) return;
+      clearTimeout(singleClickTimer);
+      singleClickTimer = null;
+      petClickAt = 0;
+      idleRoutine = [];
+
+      const cryingAssets = assetsForAction('sad');
+      const fallbackAssets = [...assetsForAction('surprise'), ...assetsForAction('angry')];
+      const assetPool = cryingAssets.length ? cryingAssets : fallbackAssets;
+      const actionKey = cryingAssets.length ? 'sad' : (assetPool[0]?.actionKey || 'surprise');
+      const asset = pickAssetForActions([actionKey], { assetPool, allowSame: false });
+      playAction(actionKey, {
+        asset,
+        message: pick(['呜呜……好痛。', '不要再锤啦……', '呜哇，康康熊要哭了。'], '呜呜……'),
+        animate: false,
+        interaction: true,
+        suppressIdleMessage: true,
+        duration: randomBetween(2200, 3600)
+      });
+      animateHammerHit();
     }
 
     function interactionButtonPresentation(item) {
@@ -1442,7 +1538,7 @@
       if (!except) flushPendingLayout();
     }
 
-    function createMenuGroup(icon, label) {
+    function createMenuGroup(icon, label, onTriggerClick = null) {
       const group = document.createElement('div');
       group.className = 'interaction-group';
       const trigger = document.createElement('button');
@@ -1475,10 +1571,14 @@
       menu.addEventListener('mouseleave', scheduleClose);
       trigger.addEventListener('click', (event) => {
         event.stopPropagation();
+        if (onTriggerClick) {
+          onTriggerClick(event, { group, trigger, setOpen });
+          return;
+        }
         setOpen(!group.classList.contains('menu-open'));
       });
       group.append(trigger, menu);
-      return { group, menu };
+      return { group, menu, trigger, setOpen };
     }
 
     function createMenuItem(icon, label, onClick) {
@@ -1514,11 +1614,12 @@
     function renderInteractionMenus() {
       buttons.innerHTML = '';
       buttons.hidden = config?.doNotDisturbMode === true;
+      syncHammerModePresentation();
       if (buttons.hidden) return;
       const interactionButtons = config.interactionButtons || [];
 
       const workModeEnabled = config?.workModeEnabled !== false;
-      const playMenu = createMenuGroup(workModeEnabled ? '💡' : '🧸', workModeEnabled ? '员工守则小贴士' : '陪康康玩');
+      const playMenu = createMenuGroup(workModeEnabled ? '💡' : '🧸', workModeEnabled ? '员工守则小贴士' : '陪康康玩', handlePlayMenuTriggerClick);
       if (workModeEnabled) {
         playMenu.menu.append(
           createMenuItem('💡', '随机来一条小贴士', showHandbookTip),
@@ -1555,6 +1656,7 @@
         openPanel();
       });
       buttons.appendChild(settingsButton);
+      syncHammerModePresentation();
     }
 
     async function openPanel(tab) {
@@ -1596,6 +1698,7 @@
     let petClickAt = 0;
     let lastPwaOpenAt = 0;
     async function openPwaFromPet() {
+      if (isHammerModeActive()) return;
       const now = Date.now();
       if (now - lastPwaOpenAt < PET_DOUBLE_CLICK_WINDOW_MS) return;
       lastPwaOpenAt = now;
@@ -1613,7 +1716,15 @@
         return;
       }
       if (event.detail >= 2) {
+        if (isHammerModeActive()) {
+          hammerPet();
+          return;
+        }
         void openPwaFromPet();
+        return;
+      }
+      if (isHammerModeActive()) {
+        hammerPet();
         return;
       }
       const clickAt = Date.now();
@@ -1631,6 +1742,7 @@
       if (event.target.closest('.no-drag') || !petHitTest(event.clientX, event.clientY)) return;
       event.preventDefault();
       event.stopPropagation();
+      if (isHammerModeActive()) return;
       await openPwaFromPet();
     });
 
