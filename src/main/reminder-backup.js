@@ -143,6 +143,101 @@ function parseReminderRows(rows, format) {
   });
 }
 
+const XLSX_TITLE_GROUPS = [
+  ['title', '标题', '提醒标题', '任务'],
+  ['domain', '域名'],
+  ['name', '名称', '用户名', '账号'],
+  ['software', '软件'],
+  ['project', '项目']
+];
+
+const XLSX_DATE_ALIASES = ['date', '日期', '提醒日期', '到期时间', '截止时间', '续费至', '过期时间'];
+
+function findHeaderIndex(headers, aliases) {
+  const normalizedAliases = aliases.map(normalizeHeader);
+  return headers.findIndex((header) => normalizedAliases.includes(header));
+}
+
+function findXlsxTitleIndex(headers) {
+  for (const aliases of XLSX_TITLE_GROUPS) {
+    const index = findHeaderIndex(headers, aliases);
+    if (index >= 0) return index;
+  }
+  return -1;
+}
+
+function findXlsxHeader(rows) {
+  const limit = Math.min(rows.length, 20);
+  for (let index = 0; index < limit; index += 1) {
+    const row = rows[index] || [];
+    const headers = row.map(normalizeHeader);
+    const titleIndex = findXlsxTitleIndex(headers);
+    const dateIndex = findHeaderIndex(headers, XLSX_DATE_ALIASES);
+    const repeatIndex = findHeaderIndex(headers, CSV_FIELDS.repeat);
+    const timeIndex = findHeaderIndex(headers, CSV_FIELDS.time);
+    if (titleIndex >= 0 && (dateIndex >= 0 || repeatIndex >= 0 || timeIndex >= 0)) {
+      return { index, headers, titleIndex, dateIndex, repeatIndex, timeIndex };
+    }
+  }
+  return null;
+}
+
+function xlsxContextMessage(row, headers, indexes) {
+  const ignored = new Set([
+    indexes.title,
+    indexes.date,
+    indexes.repeat,
+    indexes.time,
+    indexes.weekdays,
+    indexes.enabled
+  ]);
+  return headers.map((header, index) => {
+    if (ignored.has(index)) return '';
+    const value = String(row[index] || '').trim();
+    if (!value) return '';
+    const label = String(header || '').trim();
+    return label ? `${label}：${value}` : value;
+  }).filter(Boolean).join('；').slice(0, 1000);
+}
+
+function parseXlsxTable(rows, header) {
+  const headers = rows[header.index] || [];
+  const indexes = {
+    title: header.titleIndex,
+    message: findHeaderIndex(header.headers, CSV_FIELDS.message),
+    repeat: header.repeatIndex,
+    time: header.timeIndex,
+    date: header.dateIndex,
+    weekdays: findHeaderIndex(header.headers, CSV_FIELDS.weekdays),
+    intervalMinutes: findHeaderIndex(header.headers, CSV_FIELDS.intervalMinutes),
+    notificationMode: findHeaderIndex(header.headers, CSV_FIELDS.notificationMode),
+    enabled: findHeaderIndex(header.headers, CSV_FIELDS.enabled)
+  };
+  const value = (row, field) => indexes[field] >= 0 ? String(row[indexes[field]] || '').trim() : '';
+  const dataRows = rows.slice(header.index + 1).filter((row) => row?.some((item) => String(item || '').trim()));
+  const isReminderTemplate = findHeaderIndex(header.headers, ['title', '标题', '提醒标题', '任务']) >= 0;
+
+  return dataRows.map((row) => {
+    const date = normalizeCsvDate(value(row, 'date'));
+    const repeat = value(row, 'repeat') || (date ? 'once' : '');
+    const message = isReminderTemplate && indexes.message >= 0 && value(row, 'message')
+      ? value(row, 'message')
+      : xlsxContextMessage(row, headers, indexes);
+    const enabled = csvEnabled(value(row, 'enabled'));
+    return {
+      title: value(row, 'title'),
+      message,
+      repeat,
+      time: normalizeCsvTime(value(row, 'time') || (date ? '09:00' : '')),
+      date,
+      weekdays: parseCsvWeekdays(value(row, 'weekdays')),
+      intervalMinutes: value(row, 'intervalMinutes'),
+      notificationMode: value(row, 'notificationMode'),
+      ...(enabled === undefined ? {} : { enabled })
+    };
+  }).filter((item) => item.title && !/^(?:示例|示例提醒|填写示例|example|sample)(?:[：:]|[（(]|\s|$)/i.test(item.title));
+}
+
 function parseReminderCsv(text) {
   return parseReminderRows(parseCsvRows(text), 'CSV');
 }
@@ -241,22 +336,30 @@ function parseReminderText(text, now = new Date()) {
 async function parseReminderXlsx(buffer) {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer);
-  const worksheet = workbook.worksheets.find((sheet) => sheet.actualRowCount > 0);
-  if (!worksheet) throw new Error('XLSX 不包含可读取的工作表。');
-  const rows = [];
-  worksheet.eachRow({ includeEmpty: false }, (row) => {
-    rows.push(Array.from({ length: worksheet.columnCount }, (_unused, index) => xlsxCellText(row.getCell(index + 1))));
-  });
-  return parseReminderRows(rows, 'XLSX');
+  const reminders = [];
+  for (const worksheet of workbook.worksheets) {
+    if (!worksheet.actualRowCount) continue;
+    const rows = [];
+    worksheet.eachRow({ includeEmpty: false }, (row) => {
+      rows.push(Array.from({ length: worksheet.columnCount }, (_unused, index) => xlsxCellText(row.getCell(index + 1))));
+    });
+    const header = findXlsxHeader(rows);
+    if (!header) continue;
+    reminders.push(...parseXlsxTable(rows, header));
+  }
+  if (!reminders.length) throw new Error('XLSX 未找到包含标题和日期/时间信息的工作表。');
+  return reminders;
 }
 
 function xlsxCellText(cell) {
-  if (cell.value instanceof Date) {
+  const value = cell?.value;
+  if (value === null || value === undefined) return '';
+  if (value instanceof Date) {
     const format = String(cell.numFmt || '').toLowerCase();
     if (format.includes('h') && !format.includes('y') && !format.includes('d')) {
-      return `${String(cell.value.getUTCHours()).padStart(2, '0')}:${String(cell.value.getUTCMinutes()).padStart(2, '0')}`;
+      return `${String(value.getUTCHours()).padStart(2, '0')}:${String(value.getUTCMinutes()).padStart(2, '0')}`;
     }
-    return `${cell.value.getUTCFullYear()}-${String(cell.value.getUTCMonth() + 1).padStart(2, '0')}-${String(cell.value.getUTCDate()).padStart(2, '0')}`;
+    return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, '0')}-${String(value.getUTCDate()).padStart(2, '0')}`;
   }
   return String(cell.text || '').trim();
 }

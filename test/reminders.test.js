@@ -219,6 +219,45 @@ test('parses XLSX reminder rows through the same import mapping as CSV', async (
   }]);
 });
 
+test('treats merged and empty XLSX cells as blank values', async () => {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('续费清单');
+  worksheet.addRow(['标题', '内容', '重复规则', '时间', '日期', '星期', '通知方式', '启用']);
+  worksheet.addRow(['域名续费', '检查续费日期', 'once', 0.375, null, null, 'both', '是']);
+  worksheet.mergeCells('E2:F2');
+  worksheet.getCell('D2').numFmt = 'hh:mm';
+
+  const parsed = await parseReminderXlsx(await workbook.xlsx.writeBuffer());
+  assert.deepEqual(parsed, [{
+    title: '域名续费', message: '检查续费日期', repeat: 'once', time: '09:00', date: '', weekdays: [], intervalMinutes: '', notificationMode: 'both', enabled: true
+  }]);
+});
+
+test('imports renewal workbooks across titled sheets and maps expiry dates', async () => {
+  const workbook = new ExcelJS.Workbook();
+  const domains = workbook.addWorksheet('域名');
+  domains.addRow(['项目', '域名', '到期时间', '区域', '状态', '使用部门', '费用', '备注']);
+  domains.addRow(['域名管理账户', 'forcome.com', new Date(Date.UTC(2027, 1, 21)), '国内', '在用', 'Forcome', '100/年', '官网']);
+  const software = workbook.addWorksheet('软件');
+  software.addRow(['软件', '用处', '状态', '使用部门', '到期时间', '费用', '续费周期', '备注']);
+  software.addRow(['钉钉', '审批', '在用', 'Forcome', new Date(Date.UTC(2027, 4, 19)), '1999/年', '按年支付', '']);
+  const ignored = workbook.addWorksheet('辅助数据');
+  ignored.addRow(['没有表头的辅助内容']);
+  ignored.addRow(['forcome.com', '2027-02-21']);
+
+  const parsed = await parseReminderXlsx(await workbook.xlsx.writeBuffer());
+  assert.deepEqual(parsed, [
+    {
+      title: 'forcome.com', message: '项目：域名管理账户；区域：国内；状态：在用；使用部门：Forcome；费用：100/年；备注：官网',
+      repeat: 'once', time: '09:00', date: '2027-02-21', weekdays: [], intervalMinutes: '', notificationMode: ''
+    },
+    {
+      title: '钉钉', message: '用处：审批；状态：在用；使用部门：Forcome；费用：1999/年；续费周期：按年支付',
+      repeat: 'once', time: '09:00', date: '2027-05-19', weekdays: [], intervalMinutes: '', notificationMode: ''
+    }
+  ]);
+});
+
 test('backs up a corrupt config and returns normalized defaults', () => {
   const directory = path.join(__dirname, `.config-store-test-${process.pid}`);
   const configPath = path.join(directory, 'config.json');
