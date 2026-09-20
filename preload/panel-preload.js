@@ -1,6 +1,6 @@
 'use strict';
 
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('panelApi', {
   getAppInfo: () => ipcRenderer.invoke('app:get-info'),
@@ -22,6 +22,12 @@ contextBridge.exposeInMainWorld('panelApi', {
   bulkUpdateReminders: (ids, action) => ipcRenderer.invoke('reminders:bulk-update', ids, action),
   reorderReminders: (ids) => ipcRenderer.invoke('reminders:reorder', ids),
   importReminders: () => ipcRenderer.invoke('reminders:import'),
+  getFilePath: (file) => { try { return webUtils.getPathForFile(file); } catch { return ''; } },
+  prepareReminderFiles: (filePaths) => ipcRenderer.invoke('reminders:prepare-files', filePaths),
+  prepareReminderText: (text, sourceName) => ipcRenderer.invoke('reminders:prepare-text', text, sourceName),
+  prepareReminderImage: (image) => ipcRenderer.invoke('reminders:prepare-image', image),
+  commitReminderImport: (token, selectedIndexes) => ipcRenderer.invoke('reminders:commit-import', token, selectedIndexes),
+  cancelReminderImport: (token) => ipcRenderer.invoke('reminders:cancel-import', token),
   importReminderText: (text) => ipcRenderer.invoke('reminders:import-text', text),
   deleteReminderDraft: (draftId) => ipcRenderer.invoke('reminders:draft-delete', draftId),
   promoteReminderDraft: (draftId, reminder) => ipcRenderer.invoke('reminders:draft-promote', draftId, reminder),

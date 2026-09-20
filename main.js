@@ -18,7 +18,13 @@ const { Logger } = require('./src/main/logger');
 const { migrateLegacyPayload } = require('./src/main/migration');
 const { parseReminderBackup, parseReminderCsv, parseReminderText, parseReminderXlsx, serializeReminderBackup } = require('./src/main/reminder-backup');
 const { ReminderScheduler } = require('./src/main/reminder-scheduler');
-const { applyReminderBulkAction, mergeImportedReminders, normalizeReminders, normalizeSource, sortReminders, validateReminder } = require('./src/main/reminders');
+const { applyReminderBulkAction, formatReminderSchedule, mergeImportedReminders, normalizeReminders, normalizeSource, sortReminders, validateReminder } = require('./src/main/reminders');
+const {
+  classifyReminderFile,
+  extensionForName,
+  mediaTypeForExtension,
+  sourceMetadata
+} = require('./src/main/reminder-import');
 const { DEFAULT_PET_SIZE, MAX_PET_SIZE, MIN_PET_SIZE, chooseDefaultAsset, clampPetPosition, defaultPetPosition, getPetBounds: calculatePetBounds, normalizePetSize } = require('./src/main/pet-layout');
 const { ForcomeCliManager, resolveForcomeCliPaths } = require('./src/main/forcome-cli');
 const { ensureWindowBoundsVisible } = require('./src/main/window-layout');
@@ -48,9 +54,9 @@ const PANEL_MIN_HEIGHT = 620;
 const RELEASE_NOTES_URL = 'https://api.github.com/repos/Linus359/kangkangpet/releases?per_page=100';
 const ASSET_DIR_NAME = 'cat';
 const ALLOWED_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.webm', '.mp4', '.mov', '.gif']);
-const REMINDER_MEDIA_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.mp3', '.wav', '.m4a', '.aac', '.ogg', '.flac', '.webm', '.mp4', '.mov']);
-const REMINDER_TEXT_EXTENSIONS = new Set(['.txt', '.md', '.log']);
 const ASSET_PATCH_FIELDS = new Set(['enabled', 'actionKey', 'behavior', 'interactionButtonIds']);
+const REMINDER_IMPORT_TTL_MS = 10 * 60 * 1000;
+const MAX_CLIPBOARD_IMAGE_BYTES = 25 * 1024 * 1024;
 
 const actionKeywordRules = [
   ['sleep', ['休息', '睡觉', '打盹', '休憩', '趴地睡觉', '床上睡觉', '坐姿打盹', '伸懒腰']],
@@ -161,6 +167,7 @@ let pwaOpenPromise = null;
 const noteWindows = new Map();
 const noteWindowIds = new Map();
 const pendingNoteBounds = new Map();
+const pendingReminderImports = new Map();
 const deletingNoteIds = new Set();
 let isQuitting = false;
 let shutdownCleanupStarted = false;
@@ -1938,19 +1945,13 @@ function deleteAsset(assetId) {
   return publicConfig();
 }
 
-function reminderMediaType(extension) {
-  if (['.mp3', '.wav', '.m4a', '.aac', '.ogg', '.flac'].includes(extension)) return 'audio';
-  if (['.webm', '.mp4', '.mov'].includes(extension)) return 'video';
-  return 'image';
-}
-
 function makeReminderDraftFromFile(sourcePath) {
   const id = crypto.randomUUID();
   const name = path.basename(sourcePath);
   const targetPath = path.join(mediaDir, `${id}-${safeFileName(name)}`);
   fs.copyFileSync(sourcePath, targetPath);
   const extension = path.extname(sourcePath).toLowerCase();
-  const type = reminderMediaType(extension);
+  const type = mediaTypeForExtension(extension);
   return normalizeReminderDraft({
     id,
     title: `${type === 'audio' ? '语音' : type === 'video' ? '视频' : '图片'}提醒 · ${path.basename(name, extension)}`,
@@ -1998,6 +1999,225 @@ function promoteReminderDraft(draftId, reminder) {
   return result;
 }
 
+function cleanupPendingReminderImport(batch) {
+  for (const item of batch?.items || []) {
+    if (!item.temporary || !item.sourcePath) continue;
+    try { fs.rmSync(item.sourcePath, { force: true }); } catch (error) { writeLog('清理待导入图片失败。', error); }
+  }
+}
+
+function cleanupExpiredReminderImports() {
+  const cutoff = Date.now() - REMINDER_IMPORT_TTL_MS;
+  for (const [token, batch] of pendingReminderImports.entries()) {
+    if (batch.createdAt >= cutoff) continue;
+    cleanupPendingReminderImport(batch);
+    pendingReminderImports.delete(token);
+  }
+}
+
+function clearPendingReminderImports() {
+  for (const batch of pendingReminderImports.values()) cleanupPendingReminderImport(batch);
+  pendingReminderImports.clear();
+}
+
+function reminderImportPreviewItem(item, index, now) {
+  if (item.kind === 'reminder') {
+    const reminder = normalizeReminder(item.reminder, index, now);
+    const validation = validateReminder(item.reminder, now);
+    return {
+      index,
+      kind: 'reminder',
+      title: reminder.title,
+      message: reminder.message,
+      schedule: formatReminderSchedule(reminder),
+      sourceName: item.sourceName || reminder.source?.name || '',
+      sourceType: 'text',
+      selected: true,
+      warnings: validation.valid ? [] : [...validation.errors, '确认后将进入待排期素材，不会直接启用。']
+    };
+  }
+
+  if (item.kind === 'draft') {
+    return {
+      index,
+      kind: 'draft',
+      title: item.draft.title,
+      message: item.draft.message,
+      schedule: '待排期',
+      sourceName: item.draft.sourceName || item.sourceName || '',
+      sourceType: item.draft.sourceType || 'text',
+      selected: true,
+      warnings: ['缺少完整日期或时间，将进入待排期素材。']
+    };
+  }
+
+  return {
+    index,
+    kind: 'draft',
+    title: item.title,
+    message: item.message,
+    schedule: '待识别或排期',
+    sourceName: item.sourceName || '',
+    sourceType: item.sourceType || 'text',
+    selected: true,
+    warnings: item.warnings || []
+  };
+}
+
+function appendParsedReminderImportItems(items, parsed, sourceName) {
+  for (const reminder of parsed?.reminders || []) {
+    items.push({
+      kind: 'reminder',
+      sourceName,
+      reminder: {
+        ...reminder,
+        source: reminder.source || sourceMetadata('text', sourceName, '', reminder.message)
+      }
+    });
+  }
+  for (const draft of parsed?.drafts || []) {
+    items.push({
+      kind: 'draft',
+      sourceName,
+      draft: {
+        ...draft,
+        sourceType: draft.sourceType || 'text',
+        sourceName: sourceName || draft.sourceName || '对话文本'
+      }
+    });
+  }
+}
+
+async function parseReminderImportFile(filePath, now, items) {
+  const name = path.basename(String(filePath || ''));
+  const category = classifyReminderFile(filePath);
+  if (!name || !category) throw new Error('暂不支持此文件格式。');
+  if (category === 'media') {
+    items.push({
+      kind: 'media',
+      sourcePath: filePath,
+      sourceName: name,
+      sourceType: mediaTypeForExtension(extensionForName(name)),
+      title: `${mediaTypeForExtension(extensionForName(name)) === 'audio' ? '语音' : mediaTypeForExtension(extensionForName(name)) === 'video' ? '视频' : '图片'}提醒 · ${path.basename(name, extensionForName(name))}`,
+      message: `来源文件：${name}。确认后进入待排期素材。`
+    });
+    return;
+  }
+
+  const source = fs.readFileSync(filePath);
+  if (category === 'text') {
+    appendParsedReminderImportItems(items, parseReminderText(source.toString('utf8'), now), name);
+    return;
+  }
+  const incoming = category === 'xlsx'
+    ? await parseReminderXlsx(source)
+    : category === 'csv'
+      ? parseReminderCsv(source.toString('utf8'))
+      : parseReminderBackup(source.toString('utf8'));
+  appendParsedReminderImportItems(items, { reminders: incoming, drafts: [] }, name);
+}
+
+function writePendingClipboardImage(dataUrl, name = '剪贴板图片') {
+  const match = /^data:image\/(png|jpe?g|webp|gif);base64,(.+)$/i.exec(String(dataUrl || ''));
+  if (!match) throw new Error('剪贴板内容不是可读取的图片。');
+  const buffer = Buffer.from(match[2], 'base64');
+  if (!buffer.length || buffer.length > MAX_CLIPBOARD_IMAGE_BYTES) throw new Error('剪贴板图片过大，无法导入。');
+  const extension = match[1].toLowerCase() === 'jpeg' || match[1].toLowerCase() === 'jpg' ? '.jpg' : `.${match[1].toLowerCase()}`;
+  const safeName = `${String(name || '剪贴板图片').replace(/[<>:"/\\|?*\x00-\x1F]/g, '_').slice(0, 120) || '剪贴板图片'}${extension}`;
+  const sourcePath = path.join(mediaDir, `.reminder-pending-${crypto.randomUUID()}-${safeName}`);
+  fs.writeFileSync(sourcePath, buffer, { mode: 0o600 });
+  return sourcePath;
+}
+
+async function prepareReminderImport(options = {}) {
+  cleanupExpiredReminderImports();
+  const now = new Date();
+  const items = [];
+  const errors = [];
+  const text = typeof options.text === 'string' ? options.text.trim() : '';
+  if (text) appendParsedReminderImportItems(items, parseReminderText(text, now), options.sourceName || '粘贴文本');
+
+  if (options.image?.dataUrl) {
+    try {
+      const sourcePath = writePendingClipboardImage(options.image.dataUrl, options.image.name);
+      items.push({ kind: 'media', sourcePath, temporary: true, sourceName: options.image.name || '剪贴板图片', sourceType: 'image', title: '图片提醒 · 剪贴板内容', message: '剪贴板图片已接收，确认后进入待排期素材。' });
+    } catch (error) {
+      errors.push(error.message || '剪贴板图片无法读取。');
+    }
+  }
+
+  for (const filePath of Array.isArray(options.filePaths) ? options.filePaths : []) {
+    try {
+      await parseReminderImportFile(filePath, now, items);
+    } catch (error) {
+      const name = path.basename(String(filePath || '')) || '文件';
+      errors.push(`${name}：${error.message || '无法读取文件。'}`);
+    }
+  }
+
+  if (!items.length) return { ok: false, token: null, items: [], errors: errors.length ? errors : ['没有识别到可导入内容。'] };
+  const token = crypto.randomUUID();
+  const batch = { createdAt: Date.now(), items, errors };
+  pendingReminderImports.set(token, batch);
+  return {
+    ok: true,
+    canceled: false,
+    token,
+    items: items.map((item, index) => reminderImportPreviewItem(item, index, now)),
+    errors
+  };
+}
+
+function cancelReminderImport(token) {
+  const batch = pendingReminderImports.get(String(token || ''));
+  if (batch) cleanupPendingReminderImport(batch);
+  pendingReminderImports.delete(String(token || ''));
+  return { ok: true };
+}
+
+function commitReminderImport(token, selectedIndexes) {
+  const key = String(token || '');
+  const batch = pendingReminderImports.get(key);
+  if (!batch) return { ok: false, errors: ['导入预览已过期，请重新导入。'], config: publicConfig() };
+  const selected = Array.isArray(selectedIndexes)
+    ? new Set(selectedIndexes.map(Number).filter((index) => Number.isInteger(index) && index >= 0 && index < batch.items.length))
+    : new Set(batch.items.map((_item, index) => index));
+  if (!selected.size) return { ok: false, errors: ['请至少选择一条要导入的内容。'], config: publicConfig() };
+
+  const incoming = [];
+  const drafts = [];
+  const errors = [...batch.errors];
+  for (const [index, item] of batch.items.entries()) {
+    if (!selected.has(index)) continue;
+    try {
+      if (item.kind === 'reminder') {
+        const validation = validateReminder(item.reminder);
+        if (validation.valid) incoming.push(item.reminder);
+        else drafts.push({ title: item.reminder.title || '待排期提醒', message: item.reminder.message || item.reminder.title || '', sourceType: 'text', sourceName: item.sourceName || item.reminder.source?.name || '导入内容', createdAt: new Date().toISOString() });
+      }
+      else if (item.kind === 'draft') drafts.push(item.draft);
+      else if (item.kind === 'media') drafts.push(makeReminderDraftFromFile(item.sourcePath));
+    } catch (error) {
+      errors.push(`${item.sourceName || item.title || '素材'}：${error.message || '导入失败。'}`);
+    }
+  }
+
+  const merged = mergeImportedReminders(config.reminders, incoming);
+  config.reminders = merged.reminders;
+  errors.push(...merged.errors.map((item) => `第 ${Number(item.index) + 1} 条未导入`));
+  const draftsImported = appendReminderDrafts(drafts);
+  if (merged.imported) {
+    saveReminders('import-preview');
+    scheduler?.reschedule('import-preview');
+  } else if (draftsImported) {
+    saveConfigSoon();
+    broadcastConfig();
+  }
+  cleanupPendingReminderImport(batch);
+  pendingReminderImports.delete(key);
+  return { ok: true, imported: merged.imported, draftsImported, errors, config: publicConfig() };
+}
+
 function importReminderText(text) {
   const parsed = parseReminderText(text);
   const merged = mergeImportedReminders(config.reminders, parsed.reminders);
@@ -2017,52 +2237,7 @@ async function importReminders() {
     filters: [{ name: '提醒内容', extensions: ['json', 'csv', 'xlsx', 'txt', 'md', 'log', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'mp3', 'wav', 'm4a', 'aac', 'ogg', 'flac', 'webm', 'mp4', 'mov'] }]
   });
   if (result.canceled || !result.filePaths.length) return { canceled: true, config: publicConfig() };
-  let imported = 0;
-  let draftsImported = 0;
-  const errors = [];
-  let remindersChanged = false;
-  for (const filePath of result.filePaths) {
-    const extension = path.extname(filePath).toLowerCase();
-    try {
-      if (REMINDER_MEDIA_EXTENSIONS.has(extension)) {
-        const draft = makeReminderDraftFromFile(filePath);
-        draftsImported += appendReminderDrafts([draft]);
-        continue;
-      }
-      const source = fs.readFileSync(filePath);
-      if (REMINDER_TEXT_EXTENSIONS.has(extension)) {
-        const parsed = parseReminderText(source.toString('utf8'));
-        const merged = mergeImportedReminders(config.reminders, parsed.reminders);
-        config.reminders = merged.reminders;
-        imported += merged.imported;
-        errors.push(...merged.errors.map((item) => `${path.basename(filePath)}：第 ${Number(item.index) + 1} 条未导入`));
-        draftsImported += appendReminderDrafts(parsed.drafts);
-        remindersChanged = remindersChanged || merged.imported > 0;
-        continue;
-      }
-      const incoming = extension === '.xlsx'
-        ? await parseReminderXlsx(source)
-        : extension === '.csv'
-          ? parseReminderCsv(source.toString('utf8'))
-          : parseReminderBackup(source.toString('utf8'));
-      const merged = mergeImportedReminders(config.reminders, incoming);
-      config.reminders = merged.reminders;
-      imported += merged.imported;
-      errors.push(...merged.errors.map((item) => `${path.basename(filePath)}：第 ${Number(item.index) + 1} 条未导入`));
-      remindersChanged = remindersChanged || merged.imported > 0;
-    } catch (error) {
-      writeLog(`提醒导入失败：${filePath}`, error);
-      errors.push(`${path.basename(filePath)}：${error.message || '无法读取文件'}`);
-    }
-  }
-  if (remindersChanged) {
-    saveReminders('import');
-    scheduler?.reschedule('import');
-  } else if (draftsImported) {
-    saveConfigSoon();
-    broadcastConfig();
-  }
-  return { canceled: false, imported, draftsImported, errors, config: publicConfig() };
+  return prepareReminderImport({ filePaths: result.filePaths });
 }
 
 async function exportReminders() {
@@ -2180,6 +2355,11 @@ function setupIpc() {
   ipcMain.handle('reminders:bulk-update', (_event, reminderIds, action) => bulkUpdateReminders(reminderIds, action));
   ipcMain.handle('reminders:reorder', (_event, ids) => reorderReminders(ids));
   ipcMain.handle('reminders:import', importReminders);
+  ipcMain.handle('reminders:prepare-files', (_event, filePaths) => prepareReminderImport({ filePaths }));
+  ipcMain.handle('reminders:prepare-text', (_event, text, sourceName) => prepareReminderImport({ text, sourceName }));
+  ipcMain.handle('reminders:prepare-image', (_event, image) => prepareReminderImport({ image }));
+  ipcMain.handle('reminders:commit-import', (_event, token, selectedIndexes) => commitReminderImport(token, selectedIndexes));
+  ipcMain.handle('reminders:cancel-import', (_event, token) => cancelReminderImport(token));
   ipcMain.handle('reminders:import-text', (_event, text) => importReminderText(text));
   ipcMain.handle('reminders:draft-delete', (_event, draftId) => deleteReminderDraft(draftId));
   ipcMain.handle('reminders:draft-promote', (_event, draftId, reminder) => promoteReminderDraft(draftId, reminder));
@@ -2322,6 +2502,7 @@ app.on('before-quit', (event) => {
   employeePolicyAbortController?.abort();
   clearTimeout(forcomeSupervisorTimer);
   if (forcomeStatusWatchPath) fs.unwatchFile(forcomeStatusWatchPath);
+  clearPendingReminderImports();
   flushPendingNoteBounds();
   saveConfigNow();
   forcomeCli?.stopTrackedProcesses();

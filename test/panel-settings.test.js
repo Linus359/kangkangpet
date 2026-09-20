@@ -50,6 +50,16 @@ test('interaction button actions use readable choices and keep legacy keys', () 
   assert.match(panelHtml, /actionName\(asset\.actionKey\)/);
 });
 
+test('reminder imports use a staged preview and unified drop/paste entry', () => {
+  assert.match(panelHtml, /id="reminderImportDropZone"/);
+  assert.match(panelHtml, /id="reminderImportPreview"/);
+  assert.match(panelHtml, /prepareReminderFiles/);
+  assert.match(panelHtml, /prepareReminderImage/);
+  assert.match(panelHtml, /commitReminderImport/);
+  assert.match(panelHtml, /document\.addEventListener\('paste', handleReminderPaste\)/);
+  assert.match(panelHtml, /确认导入/);
+});
+
 test('tools page scrolls with the panel and collapses before the minimum width', () => {
   assert.match(panelHtml, /#toolsTab,#remindersTab,#settingsTab \{ overflow-y:auto; overflow-x:hidden; \}/);
   assert.match(panelHtml, /\.tools-grid \{ display:grid; grid-template-columns:repeat\(2,minmax\(0,1fr\)\); align-items:start;/);
