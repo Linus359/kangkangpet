@@ -40,6 +40,7 @@ app.commandLine.appendSwitch('disable-features', 'WebGPU,Vulkan,DefaultANGLEVulk
 
 const APP_NAME = '康康熊桌宠';
 const APP_ID = 'com.forcome.kangkangpet';
+const UPDATER_CONFIG_PATH = path.join(process.resourcesPath, 'app-update.yml');
 const PANEL_DEFAULT_WIDTH = 1040;
 const PANEL_DEFAULT_HEIGHT = 780;
 const PANEL_MIN_WIDTH = 860;
@@ -65,6 +66,22 @@ const actionKeywordRules = [
   ['think', ['思考', '问号', '疑惑', '托腮', '对话框', '省略号']],
   ['surprise', ['惊讶', '慌张', '流汗', '头晕', '眼花', '困倦']],
   ['idle', ['待机', '站立', '自然', '背手', '双手交叠']]
+];
+
+const actionOptions = [
+  { key: 'idle', label: '待机', description: '站立、安静陪伴' },
+  { key: 'happy', label: '开心', description: '微笑、大笑、欢呼' },
+  { key: 'greet', label: '打招呼', description: '挥手、鼓掌、告别' },
+  { key: 'eat', label: '吃喝', description: '饮食、喝水、零食' },
+  { key: 'work', label: '工作', description: '办公、电脑、阅读' },
+  { key: 'clean', label: '整理', description: '扫地、拖地、浇水' },
+  { key: 'exercise', label: '运动', description: '锻炼、跳舞、足球' },
+  { key: 'think', label: '思考', description: '疑惑、问号、托腮' },
+  { key: 'surprise', label: '惊讶', description: '慌张、流汗、头晕' },
+  { key: 'sad', label: '委屈', description: '哭、伤心、发抖' },
+  { key: 'angry', label: '生气', description: '抱臂、冒汽、握拳' },
+  { key: 'sleep', label: '休息', description: '睡觉、打盹、伸懒腰' },
+  { key: 'walk', label: '移动', description: '行走、奔跑、跳跃' }
 ];
 
 const defaultInteractionButtons = [
@@ -179,9 +196,9 @@ function writeLog(message, error = null) {
 }
 
 function publicUpdaterState() {
-  return app.isPackaged
+  return app.isPackaged && fs.existsSync(UPDATER_CONFIG_PATH)
     ? { ...updaterState }
-    : { status: 'unavailable', version: app.getVersion(), message: '开发环境不检查更新。' };
+    : { status: 'unavailable', version: app.getVersion(), message: app.isPackaged ? '免安装预览版不支持在线更新。' : '开发环境不检查更新。' };
 }
 
 function broadcastUpdaterState() {
@@ -210,7 +227,7 @@ function scheduleUpdaterRetry() {
 }
 
 function configureAutoUpdater() {
-  if (updaterConfigured || !app.isPackaged) return;
+  if (updaterConfigured || !app.isPackaged || !fs.existsSync(UPDATER_CONFIG_PATH)) return;
   updaterConfigured = true;
   // Keep the decision in the user's hands. electron-updater still uses its
   // NSIS differential downloader when the previous block map/cache is
@@ -235,7 +252,7 @@ function configureAutoUpdater() {
     updaterDownloadPromise = null;
     updaterPromptVersion = null;
     setUpdaterState({ status: 'error', version: null, message: '更新失败，请稍后重试。', percent: null, bytesPerSecond: 0, transferred: 0, total: 0 });
-    writeLog('在线更新检查失败。', error);
+    writeLog(`在线更新失败（阶段由更新器报告）。${error?.code ? ` 错误码：${error.code}` : ''}`, error);
     scheduleUpdaterRetry();
   });
   autoUpdater.on('update-available', (info) => {
@@ -312,8 +329,8 @@ async function promptAndDownloadUpdate(info) {
 }
 
 async function checkForUpdates() {
-  if (!app.isPackaged) {
-    const result = { status: 'unavailable', version: app.getVersion(), message: '开发环境不检查更新。' };
+  if (!app.isPackaged || !fs.existsSync(UPDATER_CONFIG_PATH)) {
+    const result = { status: 'unavailable', version: app.getVersion(), message: app.isPackaged ? '免安装预览版不支持在线更新。' : '开发环境不检查更新。' };
     setUpdaterState(result);
     return result;
   }
@@ -350,7 +367,7 @@ async function checkForUpdates() {
 }
 
 function setupAutoUpdater() {
-  if (!app.isPackaged) return;
+  if (!app.isPackaged || !fs.existsSync(UPDATER_CONFIG_PATH)) return;
   configureAutoUpdater();
   checkForUpdates().catch((error) => writeLog('无法启动在线更新检查。', error));
 }
@@ -708,6 +725,7 @@ function publicConfig() {
   const { employeePolicy: _employeePolicy, ...rendererConfig } = config;
   return {
     ...rendererConfig,
+    actionOptions,
     newStaffProfile: employeePolicyProfile(),
     pwa: { ...rendererConfig.pwa, launchCommand: null },
     assets: rendererConfig.assets.map((asset) => ({ ...asset, fileUrl: asset.path && fs.existsSync(asset.path) ? pathToFileURL(asset.path).toString() : null })),

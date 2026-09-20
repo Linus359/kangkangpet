@@ -4,8 +4,16 @@
 ; old version is removed or any application files are overwritten.
 !macro customCheckAppRunning
   InitPluginsDir
+  DetailPrint "正在退出程序..."
+  nsExec::ExecToLog `taskkill /F /T /IM "${APP_EXECUTABLE_FILENAME}"`
+  Sleep 300
+  ; electron-updater launches NSIS silently. Do not run the PowerShell legacy
+  ; CLI cleanup in that path: security software commonly blocks it and turns
+  ; an otherwise valid update into a failed install. Manual installs retain
+  ; the cleanup below.
+  IfSilent skipLegacyCliCleanup
   File /oname=$PLUGINSDIR\cleanup-legacy-cli.ps1 "${PROJECT_DIR}\build\cleanup-legacy-cli.ps1"
-  DetailPrint "正在退出程序并清理旧版 FORCOME AI CLI..."
+  DetailPrint "正在清理旧版 FORCOME AI CLI..."
   nsExec::ExecToLog `$WINDIR\Sysnative\WindowsPowerShell\v1.0\powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\cleanup-legacy-cli.ps1" -CurrentInstallRoot "$INSTDIR"`
   Pop $0
   StrCmp $0 0 legacyCliCleanupDone
@@ -13,7 +21,7 @@
   SetErrorLevel $0
   Quit
   legacyCliCleanupDone:
-  Sleep 300
+  skipLegacyCliCleanup:
 !macroend
 
 !macro customUnInstall

@@ -38,6 +38,18 @@ test('panel keeps the mini calendar inside its sidebar at constrained sizes', ()
   assert.match(panelHtml, /\.calendar-sidebar > \.sidebar-block:first-child \.mini-grid \{ overflow:visible; \}/);
 });
 
+test('interaction button actions use readable choices and keep legacy keys', () => {
+  assert.doesNotMatch(panelHtml, /动作键（逗号分隔）/);
+  assert.match(panelHtml, /点击后可以做什么/);
+  assert.match(panelHtml, /action-picker/);
+  assert.match(panelHtml, /action-option-description/);
+  assert.match(panelHtml, /已保留旧动作/);
+  assert.match(panelHtml, /const next = new Set\(button\.actionKeys \|\| \[\]\)/);
+  assert.match(panelHtml, /if \(!next\.size\)/);
+  assert.match(panelHtml, /button\.actionKeys = \[\.\.\.next\]/);
+  assert.match(panelHtml, /actionName\(asset\.actionKey\)/);
+});
+
 test('tools page scrolls with the panel and collapses before the minimum width', () => {
   assert.match(panelHtml, /#toolsTab,#remindersTab,#settingsTab \{ overflow-y:auto; overflow-x:hidden; \}/);
   assert.match(panelHtml, /\.tools-grid \{ display:grid; grid-template-columns:repeat\(2,minmax\(0,1fr\)\); align-items:start;/);

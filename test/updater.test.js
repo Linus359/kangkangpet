@@ -24,7 +24,9 @@ test('packages GitHub Releases metadata for automatic updates', () => {
 
 test('checks packaged installs for updates without affecting development', () => {
   assert.match(mainSource, /const \{ autoUpdater \} = require\('electron-updater'\);/);
-  assert.match(mainSource, /function setupAutoUpdater\(\) \{[\s\S]*?if \(!app\.isPackaged\) return;/);
+  assert.match(mainSource, /const UPDATER_CONFIG_PATH = path\.join\(process\.resourcesPath, 'app-update\.yml'\);/);
+  assert.match(mainSource, /fs\.existsSync\(UPDATER_CONFIG_PATH\)/);
+  assert.match(mainSource, /function setupAutoUpdater\(\) \{[\s\S]*?if \(!app\.isPackaged \|\| !fs\.existsSync\(UPDATER_CONFIG_PATH\)\) return;/);
   assert.match(mainSource, /autoUpdater\.checkForUpdates\(\)/);
   assert.match(mainSource, /autoUpdater\.autoDownload = false;/);
   assert.match(mainSource, /autoUpdater\.disableDifferentialDownload = false;/);
@@ -44,6 +46,7 @@ test('checks packaged installs for updates without affecting development', () =>
   assert.match(mainSource, /setupAutoUpdater\(\);/);
   assert.match(mainSource, /更新安装前停止 FORCOME AI 连接器失败/);
   assert.match(mainSource, /autoUpdater\.quitAndInstall\(true, true\)/);
+  assert.match(mainSource, /免安装预览版不支持在线更新/);
 });
 
 test('exposes app version and manual update status to the settings panel', () => {

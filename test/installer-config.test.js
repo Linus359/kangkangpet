@@ -35,7 +35,7 @@ test('packages only required Windows x64 runtime files with maximum compression'
   assert.ok(!build.asarUnpack.includes('assets/cat/**'));
 });
 
-test('uses a standard per-user installer, removes legacy standalone CLIs, and preserves application data', () => {
+test('uses a standard per-user installer, preserves manual legacy cleanup, and keeps silent updates lightweight', () => {
   const nsis = packageJson.build.nsis;
   assert.equal(nsis.oneClick, false);
   assert.equal(nsis.allowToChangeInstallationDirectory, true);
@@ -47,8 +47,10 @@ test('uses a standard per-user installer, removes legacy standalone CLIs, and pr
   assert.equal(nsis.deleteAppDataOnUninstall, false);
   assert.match(installer, /!macro customCheckAppRunning/);
   assert.doesNotMatch(installer, /!macro customInit/);
+  assert.match(installer, /taskkill \/F \/T \/IM/);
   assert.match(installer, /cleanup-legacy-cli\.ps1/);
-  assert.match(installer, /正在退出程序并清理旧版 FORCOME AI CLI/);
+  assert.match(installer, /IfSilent skipLegacyCliCleanup/);
+  assert.match(installer, /security software commonly blocks it/);
   assert.match(installer, /inside the install section/);
   assert.match(installer, /legacyCliCleanupDone/);
   assert.deepEqual([...legacyCleanupBytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
