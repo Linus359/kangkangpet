@@ -45,6 +45,15 @@ test('uses a standard per-user installer, preserves manual legacy cleanup, and k
   assert.equal(nsis.menuCategory, '康康熊桌宠');
   assert.equal(nsis.runAfterFinish, true);
   assert.equal(nsis.deleteAppDataOnUninstall, false);
+  assert.match(installer, /!define KANGKANGPET_SUFFIX "\\康康Pet"/);
+  assert.match(installer, /!define LEGACY_KANGKANGPET_SUFFIX "\\kangkangpet"/);
+  assert.match(installer, /!macro customInit/);
+  assert.match(installer, /StrCpy \$INSTDIR "\$PROGRAMFILES64"/);
+  assert.match(installer, /Function \.onVerifyInstDir/);
+  assert.match(installer, /Function NormalizeKangKangPetInstallDir/);
+  assert.match(installer, /StrCmp \$R4 "\$\{LEGACY_KANGKANGPET_SUFFIX\}" replaceLegacy appendSuffix/);
+  assert.match(installer, /Call NormalizeKangKangPetInstallDir/);
+  assert.match(installer, /!ifndef BUILD_UNINSTALLER/);
   assert.match(installer, /!macro customCheckAppRunning/);
   assert.match(installer, /!macro customInstall/);
   assert.match(installer, /taskkill \/F \/T \/IM/);

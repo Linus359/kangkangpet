@@ -1,4 +1,55 @@
+!define KANGKANGPET_SUFFIX "\康康Pet"
+!define LEGACY_KANGKANGPET_SUFFIX "\kangkangpet"
+
 Var SkipEmbeddedCli
+
+Function NormalizeKangKangPetInstallDir
+  StrCpy $R0 $INSTDIR
+
+  trimTrailingSlash:
+  StrLen $R1 $R0
+  IntCmp $R1 0 trimDone
+  StrCpy $R2 $R0 1 -1
+  StrCmp $R2 "\" trimOne trimDone
+  trimOne:
+  StrCpy $R0 $R0 -1
+  Goto trimTrailingSlash
+
+  trimDone:
+  StrLen $R1 $R0
+  StrLen $R2 "${KANGKANGPET_SUFFIX}"
+  IntCmp $R1 $R2 checkSuffix appendSuffix checkSuffix
+
+  checkSuffix:
+  IntOp $R3 $R1 - $R2
+  StrCpy $R4 $R0 "" $R3
+  StrCmp $R4 "${KANGKANGPET_SUFFIX}" normalized
+
+  StrLen $R2 "${LEGACY_KANGKANGPET_SUFFIX}"
+  IntCmp $R1 $R2 checkLegacySuffix appendSuffix checkLegacySuffix
+
+  checkLegacySuffix:
+  IntOp $R3 $R1 - $R2
+  StrCpy $R4 $R0 "" $R3
+  StrCmp $R4 "${LEGACY_KANGKANGPET_SUFFIX}" replaceLegacy appendSuffix
+
+  replaceLegacy:
+  StrCpy $R0 $R0 $R3
+
+  appendSuffix:
+  StrCpy $INSTDIR "$R0${KANGKANGPET_SUFFIX}"
+  Goto normalized
+
+  normalized:
+FunctionEnd
+
+Function .onVerifyInstDir
+  Call NormalizeKangKangPetInstallDir
+FunctionEnd
+
+!macro customInit
+  StrCpy $INSTDIR "$PROGRAMFILES64"
+!macroend
 
 ; Stop only the current desktop pet, then decide whether the embedded CLI may
 ; be installed. The legacy CLI remains untouched when the user declines.
@@ -8,6 +59,7 @@ Var SkipEmbeddedCli
   DetailPrint "正在退出程序..."
   nsExec::ExecToLog `taskkill /F /T /IM "${APP_EXECUTABLE_FILENAME}"`
   Sleep 300
+!ifndef BUILD_UNINSTALLER
   File /oname=$PLUGINSDIR\cleanup-legacy-cli.ps1 "${PROJECT_DIR}\build\cleanup-legacy-cli.ps1"
   DetailPrint "正在检查旧版 FORCOME AI CLI..."
   nsExec::ExecToLog `$WINDIR\Sysnative\WindowsPowerShell\v1.0\powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\cleanup-legacy-cli.ps1" -CurrentInstallRoot "$INSTDIR" -AuditOnly`
@@ -41,6 +93,7 @@ Var SkipEmbeddedCli
   DetailPrint "静默安装检测到旧版 CLI，本次跳过内置 CLI 部署。"
 
   legacyCliAuditDone:
+!endif
 !macroend
 
 !macro customInstall
