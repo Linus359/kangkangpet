@@ -203,8 +203,7 @@ FunctionEnd
 
 !macro customInstall
   StrCmp $SkipEmbeddedCli 1 0 customInstallDone
-  DetailPrint "正在移除跳过部署的内置 FORCOME AI CLI..."
-  RMDir /r "$INSTDIR\resources\forcome-cli"
+  DetailPrint "已保留内置 FORCOME AI CLI 文件；运行时将避免与独立安装版连接器同时运行。"
   customInstallDone:
 !macroend
 

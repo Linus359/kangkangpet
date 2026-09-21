@@ -69,7 +69,8 @@ test('uses a standard per-user installer, preserves manual legacy cleanup, and k
   assert.match(installer, /StrCpy \$LegacyCliChoice "uninstall"/);
   assert.match(installer, /StrCpy \$LegacyCliChoice "keep"/);
   assert.match(installer, /StrCpy \$SkipEmbeddedCli 1/);
-  assert.match(installer, /RMDir \/r "\$INSTDIR\\resources\\forcome-cli"/);
+  assert.match(installer, /已保留内置 FORCOME AI CLI 文件；运行时将避免与独立安装版连接器同时运行。/);
+  assert.doesNotMatch(installer, /RMDir \/r "\$INSTDIR\\resources\\forcome-cli"/);
   assert.match(installer, /IfSilent legacyCliSilentSkip/);
   assert.match(legacyCleanup, /if \(\$audit\.Count -gt 0\) \{ exit 10 \}/);
   assert.deepEqual([...legacyCleanupBytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
