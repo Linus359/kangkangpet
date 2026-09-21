@@ -233,6 +233,17 @@ test('treats merged and empty XLSX cells as blank values', async () => {
   }]);
 });
 
+test('reads XLSX formula and rich-text values without using fragile display getters', async () => {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('提醒');
+  worksheet.addRow(['标题', '内容', '日期']);
+  worksheet.addRow([{ richText: [{ text: '续费' }, { text: '提醒' }] }, { formula: '"检查"&"日期"', result: '检查日期' }, new Date(Date.UTC(2027, 1, 21))]);
+  const parsed = await parseReminderXlsx(await workbook.xlsx.writeBuffer());
+  assert.deepEqual(parsed, [{
+    title: '续费提醒', message: '检查日期', repeat: 'once', time: '09:00', date: '2027-02-21', weekdays: [], intervalMinutes: '', notificationMode: ''
+  }]);
+});
+
 test('imports renewal workbooks across titled sheets and maps expiry dates', async () => {
   const workbook = new ExcelJS.Workbook();
   const domains = workbook.addWorksheet('域名');

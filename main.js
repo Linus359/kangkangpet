@@ -18,7 +18,7 @@ const { Logger } = require('./src/main/logger');
 const { migrateLegacyPayload } = require('./src/main/migration');
 const { parseReminderBackup, parseReminderCsv, parseReminderText, parseReminderXlsx, serializeReminderBackup } = require('./src/main/reminder-backup');
 const { ReminderScheduler } = require('./src/main/reminder-scheduler');
-const { applyReminderBulkAction, formatReminderSchedule, mergeImportedReminders, normalizeReminders, normalizeSource, sortReminders, validateReminder } = require('./src/main/reminders');
+const { applyReminderBulkAction, formatReminderSchedule, mergeImportedReminders, normalizeReminder, normalizeReminders, normalizeSource, sortReminders, validateReminder } = require('./src/main/reminders');
 const {
   classifyReminderFile,
   extensionForName,

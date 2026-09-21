@@ -6,6 +6,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const panelHtml = fs.readFileSync(path.join(__dirname, '..', 'panel.html'), 'utf8');
+const mainSource = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
 
 test('settings autosave preserves active inputs and IME composition', () => {
   assert.match(panelHtml, /let pendingSaveFactory = null;/);
@@ -51,6 +52,7 @@ test('interaction button actions use readable choices and keep legacy keys', () 
 });
 
 test('reminder imports use a staged preview and unified drop/paste entry', () => {
+  assert.match(mainSource, /formatReminderSchedule, mergeImportedReminders, normalizeReminder, normalizeReminders/);
   assert.match(panelHtml, /id="reminderImportDropZone"/);
   assert.match(panelHtml, /id="reminderImportPreview"/);
   assert.match(panelHtml, /prepareReminderFiles/);

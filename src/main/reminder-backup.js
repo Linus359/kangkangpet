@@ -351,17 +351,27 @@ async function parseReminderXlsx(buffer) {
   return reminders;
 }
 
-function xlsxCellText(cell) {
-  const value = cell?.value;
+function xlsxValueText(value, numFmt = '') {
   if (value === null || value === undefined) return '';
   if (value instanceof Date) {
-    const format = String(cell.numFmt || '').toLowerCase();
+    const format = String(numFmt || '').toLowerCase();
     if (format.includes('h') && !format.includes('y') && !format.includes('d')) {
       return `${String(value.getUTCHours()).padStart(2, '0')}:${String(value.getUTCMinutes()).padStart(2, '0')}`;
     }
     return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, '0')}-${String(value.getUTCDate()).padStart(2, '0')}`;
   }
-  return String(cell.text || '').trim();
+  if (typeof value === 'object') {
+    if (Array.isArray(value.richText)) return value.richText.map((part) => String(part?.text || '')).join('').trim();
+    if (Object.prototype.hasOwnProperty.call(value, 'result')) return xlsxValueText(value.result, numFmt);
+    if (Object.prototype.hasOwnProperty.call(value, 'text')) return String(value.text || '').trim();
+    if (Object.prototype.hasOwnProperty.call(value, 'hyperlink')) return String(value.text || value.hyperlink || '').trim();
+    return '';
+  }
+  return String(value).trim();
+}
+
+function xlsxCellText(cell) {
+  return xlsxValueText(cell?.value, cell?.numFmt);
 }
 
 function serializeReminderBackup(reminders, exportedAt = new Date().toISOString()) {
