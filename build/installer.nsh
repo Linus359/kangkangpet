@@ -1,7 +1,18 @@
+!include nsDialogs.nsh
+
 !define KANGKANGPET_SUFFIX "\康康Pet"
 !define LEGACY_KANGKANGPET_SUFFIX "\kangkangpet"
 
 Var SkipEmbeddedCli
+!ifndef BUILD_UNINSTALLER
+Var LegacyCliAuditStatus
+Var LegacyCliChoice
+Var LegacyCliCleanupStatus
+Var LegacyCliDialog
+Var LegacyCliPrompt
+Var LegacyCliRemoveButton
+Var LegacyCliKeepButton
+!endif
 
 Function NormalizeKangKangPetInstallDir
   StrCpy $R0 $INSTDIR
@@ -51,6 +62,106 @@ FunctionEnd
   StrCpy $INSTDIR "$PROGRAMFILES64"
 !macroend
 
+!ifndef BUILD_UNINSTALLER
+Function AuditLegacyCli
+  StrCmp $LegacyCliAuditStatus "" 0 auditDone
+  InitPluginsDir
+  File /oname=$PLUGINSDIR\cleanup-legacy-cli.ps1 "${PROJECT_DIR}\build\cleanup-legacy-cli.ps1"
+  DetailPrint "正在检查旧版 FORCOME AI CLI..."
+  nsExec::ExecToLog `$WINDIR\Sysnative\WindowsPowerShell\v1.0\powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\cleanup-legacy-cli.ps1" -CurrentInstallRoot "$INSTDIR" -AuditOnly`
+  Pop $0
+  StrCmp $0 10 legacyCliDetected
+  StrCmp $0 0 legacyCliAbsent
+  StrCpy $LegacyCliAuditStatus "error"
+  Return
+
+  legacyCliDetected:
+  StrCpy $LegacyCliAuditStatus "detected"
+  Return
+
+  legacyCliAbsent:
+  StrCpy $LegacyCliAuditStatus "absent"
+
+  auditDone:
+FunctionEnd
+
+Function CleanupLegacyCli
+  DetailPrint "正在清理旧版 FORCOME AI CLI..."
+  nsExec::ExecToLog `$WINDIR\Sysnative\WindowsPowerShell\v1.0\powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\cleanup-legacy-cli.ps1" -CurrentInstallRoot "$INSTDIR"`
+  Pop $LegacyCliCleanupStatus
+FunctionEnd
+
+Function LegacyCliRemoveClicked
+  StrCpy $LegacyCliChoice "uninstall"
+  GetDlgItem $0 $HWNDPARENT 1
+  SendMessage $0 ${BM_CLICK} 0 0
+FunctionEnd
+
+Function LegacyCliKeepClicked
+  StrCpy $LegacyCliChoice "keep"
+  GetDlgItem $0 $HWNDPARENT 1
+  SendMessage $0 ${BM_CLICK} 0 0
+FunctionEnd
+
+Function LegacyCliChoicePageShow
+  Call AuditLegacyCli
+  StrCmp $LegacyCliAuditStatus "detected" legacyCliChoicePageCreate
+  StrCmp $LegacyCliAuditStatus "absent" legacyCliChoicePageSkip
+
+  StrCpy $SkipEmbeddedCli 1
+  StrCpy $LegacyCliChoice "audit-error"
+  MessageBox MB_OK|MB_ICONEXCLAMATION "无法确认旧版 FORCOME AI CLI 状态。本次将跳过内置 CLI，只安装桌宠和其他功能，原有 CLI 不会被修改。"
+  Abort
+
+  legacyCliChoicePageSkip:
+  StrCpy $LegacyCliChoice "none"
+  Abort
+
+  legacyCliChoicePageCreate:
+  nsDialogs::Create 1018
+  Pop $LegacyCliDialog
+  ${NSD_CreateLabel} 0u 0u 330u 30u "检测到电脑中存在旧版FORCOME AI CLI。"
+  Pop $LegacyCliPrompt
+  ${NSD_CreateButton} 20u 70u 120u 28u "卸载旧版"
+  Pop $LegacyCliRemoveButton
+  ${NSD_OnClick} $LegacyCliRemoveButton LegacyCliRemoveClicked
+  ${NSD_CreateButton} 160u 70u 120u 28u "保留旧版"
+  Pop $LegacyCliKeepButton
+  ${NSD_OnClick} $LegacyCliKeepButton LegacyCliKeepClicked
+
+  GetDlgItem $0 $HWNDPARENT 1
+  ShowWindow $0 ${SW_HIDE}
+  GetDlgItem $0 $HWNDPARENT 2
+  ShowWindow $0 ${SW_HIDE}
+  nsDialogs::Show
+FunctionEnd
+
+Function LegacyCliChoicePageLeave
+  StrCmp $LegacyCliChoice "uninstall" legacyCliChoicePageUninstall
+  StrCmp $LegacyCliChoice "keep" legacyCliChoicePageKeep
+  Abort
+
+  legacyCliChoicePageUninstall:
+  Call CleanupLegacyCli
+  StrCmp $LegacyCliCleanupStatus 0 legacyCliChoicePageDone
+  MessageBox MB_OK|MB_ICONSTOP "检测到旧版 FORCOME AI CLI 未能完全清理。为避免多个连接器互相抢占，本次安装已停止。请查看日志：$TEMP\KangKangPet-legacy-cli-cleanup.log"
+  Abort
+
+  legacyCliChoicePageKeep:
+  StrCpy $SkipEmbeddedCli 1
+  DetailPrint "用户选择保留旧版 CLI，本次跳过内置 CLI 部署。"
+
+  legacyCliChoicePageDone:
+FunctionEnd
+!endif
+
+!macro customPageAfterChangeDir
+  PageEx custom
+    PageCallbacks LegacyCliChoicePageShow LegacyCliChoicePageLeave
+    Caption " "
+  PageExEnd
+!macroend
+
 ; Stop only the current desktop pet, then decide whether the embedded CLI may
 ; be installed. The legacy CLI remains untouched when the user declines.
 !macro customCheckAppRunning
@@ -60,32 +171,26 @@ FunctionEnd
   nsExec::ExecToLog `taskkill /F /T /IM "${APP_EXECUTABLE_FILENAME}"`
   Sleep 300
 !ifndef BUILD_UNINSTALLER
-  File /oname=$PLUGINSDIR\cleanup-legacy-cli.ps1 "${PROJECT_DIR}\build\cleanup-legacy-cli.ps1"
-  DetailPrint "正在检查旧版 FORCOME AI CLI..."
-  nsExec::ExecToLog `$WINDIR\Sysnative\WindowsPowerShell\v1.0\powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\cleanup-legacy-cli.ps1" -CurrentInstallRoot "$INSTDIR" -AuditOnly`
-  Pop $0
-  StrCmp $0 10 legacyCliDetected
-  StrCmp $0 0 legacyCliAuditDone
+  StrCmp $LegacyCliChoice "keep" legacyCliSkipAlreadyHandled
+  StrCmp $LegacyCliChoice "audit-error" legacyCliSkipAlreadyHandled
+  StrCmp $LegacyCliChoice "" legacyCliFallbackAudit legacyCliAuditDone
+
+  legacyCliSkipAlreadyHandled:
+  StrCpy $SkipEmbeddedCli 1
+  Goto legacyCliAuditDone
+
+  legacyCliFallbackAudit:
+  Call AuditLegacyCli
+  StrCmp $LegacyCliAuditStatus "detected" legacyCliDetected
+  StrCmp $LegacyCliAuditStatus "absent" legacyCliAuditDone
   StrCpy $SkipEmbeddedCli 1
   MessageBox MB_OK|MB_ICONEXCLAMATION "无法确认旧版 FORCOME AI CLI 状态。本次将跳过内置 CLI，只安装桌宠和其他功能，原有 CLI 不会被修改。"
   Goto legacyCliAuditDone
 
   legacyCliDetected:
   IfSilent legacyCliSilentSkip
-  MessageBox MB_YESNO|MB_ICONQUESTION "检测到电脑中存在旧版 FORCOME AI CLI。\n\n选择“是”：卸载旧版并安装康康熊内置 CLI。\n选择“否”：保留旧版 CLI，只安装桌宠和其他功能。" IDYES legacyCliInstall IDNO legacyCliSkip
-
-  legacyCliInstall:
-  DetailPrint "正在清理旧版 FORCOME AI CLI..."
-  nsExec::ExecToLog `$WINDIR\Sysnative\WindowsPowerShell\v1.0\powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\cleanup-legacy-cli.ps1" -CurrentInstallRoot "$INSTDIR"`
-  Pop $0
-  StrCmp $0 0 legacyCliAuditDone
-  MessageBox MB_OK|MB_ICONSTOP "检测到旧版 FORCOME AI CLI 未能完全清理。为避免多个连接器互相抢占，本次安装已停止。请查看日志：$TEMP\KangKangPet-legacy-cli-cleanup.log"
-  SetErrorLevel $0
-  Quit
-
-  legacyCliSkip:
   StrCpy $SkipEmbeddedCli 1
-  DetailPrint "用户选择保留旧版 CLI，本次跳过内置 CLI 部署。"
+  MessageBox MB_OK|MB_ICONEXCLAMATION "无法显示旧版 FORCOME AI CLI 选择页面。本次将跳过内置 CLI，只安装桌宠和其他功能，原有 CLI 不会被修改。"
   Goto legacyCliAuditDone
 
   legacyCliSilentSkip:
