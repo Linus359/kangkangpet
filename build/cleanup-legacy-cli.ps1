@@ -166,6 +166,7 @@ function Test-LegacyProcess {
   $exe = [string] $Process.ExecutablePath
   $cmd = [string] $Process.CommandLine
   $name = [string] $Process.Name
+  if ($AuditOnly -and $script:CurrentRoot -and $exe -and (Test-PathUnderRoot -Path $exe -Root $script:CurrentRoot)) { return $false }
   if ($script:CurrentRoot -and $exe -and (Test-PathUnderRoot -Path $exe -Root $script:CurrentRoot)) { return $true }
   foreach ($root in $script:LegacyRoots) {
     if (($exe -and (Test-PathUnderRoot -Path $exe -Root $root)) -or ($cmd -and $cmd.IndexOf($root, [StringComparison]::OrdinalIgnoreCase) -ge 0)) { return $true }
@@ -411,6 +412,7 @@ try {
   if ($AuditOnly) {
     $audit = @(Get-RemainingConflicts)
     [pscustomobject]@{ CurrentInstallRoot = $script:CurrentRoot; LegacyRoots = @($script:LegacyRoots); Conflicts = $audit } | ConvertTo-Json -Depth 5
+    if ($audit.Count -gt 0) { exit 10 }
     exit 0
   }
 

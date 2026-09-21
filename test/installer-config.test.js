@@ -46,13 +46,16 @@ test('uses a standard per-user installer, preserves manual legacy cleanup, and k
   assert.equal(nsis.runAfterFinish, true);
   assert.equal(nsis.deleteAppDataOnUninstall, false);
   assert.match(installer, /!macro customCheckAppRunning/);
-  assert.doesNotMatch(installer, /!macro customInit/);
+  assert.match(installer, /!macro customInstall/);
   assert.match(installer, /taskkill \/F \/T \/IM/);
   assert.match(installer, /cleanup-legacy-cli\.ps1/);
-  assert.match(installer, /IfSilent skipLegacyCliCleanup/);
-  assert.match(installer, /security software commonly blocks it/);
-  assert.match(installer, /inside the install section/);
-  assert.match(installer, /legacyCliCleanupDone/);
+  assert.match(installer, /-AuditOnly/);
+  assert.match(installer, /MB_YESNO\|MB_ICONQUESTION/);
+  assert.match(installer, /IDYES legacyCliInstall IDNO legacyCliSkip/);
+  assert.match(installer, /StrCpy \$SkipEmbeddedCli 1/);
+  assert.match(installer, /RMDir \/r "\$INSTDIR\\resources\\forcome-cli"/);
+  assert.match(installer, /IfSilent legacyCliSilentSkip/);
+  assert.match(legacyCleanup, /if \(\$audit\.Count -gt 0\) \{ exit 10 \}/);
   assert.deepEqual([...legacyCleanupBytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
   assert.match(legacyCleanup, /ForcomeAI-Connector/);
   assert.match(legacyCleanup, /ForcomeAI-Tray/);
@@ -62,5 +65,5 @@ test('uses a standard per-user installer, preserves manual legacy cleanup, and k
   assert.match(legacyCleanup, /保留 \.lobehub 登录凭据/);
   assert.doesNotMatch(legacyCleanup, /Remove-Item[^\n]+credentials\.json/i);
   assert.match(installer, /Preserving local reminder, calendar, note, and settings data in AppData/);
-  assert.doesNotMatch(installer, /KangKangSelectDefaultInstallDrive|Get-PSDrive|MUI_PAGE_DIRECTORY|CreateShortCut|RMDir/);
+  assert.doesNotMatch(installer, /KangKangSelectDefaultInstallDrive|Get-PSDrive|MUI_PAGE_DIRECTORY|CreateShortCut/);
 });
