@@ -57,6 +57,7 @@ const ALLOWED_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.webm', '
 const ASSET_PATCH_FIELDS = new Set(['enabled', 'actionKey', 'behavior', 'interactionButtonIds']);
 const REMINDER_IMPORT_TTL_MS = 10 * 60 * 1000;
 const MAX_CLIPBOARD_IMAGE_BYTES = 25 * 1024 * 1024;
+const MAX_DROPPED_FILE_BYTES = 100 * 1024 * 1024;
 
 const actionKeywordRules = [
   ['sleep', ['休息', '睡觉', '打盹', '休憩', '趴地睡觉', '床上睡觉', '坐姿打盹', '伸懒腰']],
@@ -2088,14 +2089,37 @@ function appendParsedReminderImportItems(items, parsed, sourceName) {
   }
 }
 
-async function parseReminderImportFile(filePath, now, items) {
-  const name = path.basename(String(filePath || ''));
-  const category = classifyReminderFile(filePath);
+function reminderImportFileDetails(fileEntry) {
+  if (typeof fileEntry === 'string') {
+    return { sourcePath: fileEntry, sourceName: path.basename(fileEntry), buffer: null };
+  }
+  const sourceName = path.basename(String(fileEntry?.name || ''));
+  const data = fileEntry?.data;
+  if (!sourceName || data === undefined || data === null) throw new Error('拖入文件无法读取。');
+  const buffer = Buffer.from(data);
+  if (!buffer.length) throw new Error('拖入文件为空。');
+  if (buffer.length > MAX_DROPPED_FILE_BYTES) throw new Error('拖入文件过大，无法导入。');
+  return { sourcePath: '', sourceName, buffer };
+}
+
+function writePendingReminderFile(buffer, name) {
+  const safeName = safeFileName(name).slice(0, 120) || '拖入文件';
+  const sourcePath = path.join(mediaDir, `.reminder-pending-${crypto.randomUUID()}-${safeName}`);
+  fs.writeFileSync(sourcePath, buffer, { mode: 0o600 });
+  return sourcePath;
+}
+
+async function parseReminderImportFile(fileEntry, now, items) {
+  const { sourcePath, sourceName, buffer } = reminderImportFileDetails(fileEntry);
+  const name = sourceName;
+  const category = classifyReminderFile(name);
   if (!name || !category) throw new Error('暂不支持此文件格式。');
   if (category === 'media') {
+    const mediaPath = sourcePath || writePendingReminderFile(buffer, name);
     items.push({
       kind: 'media',
-      sourcePath: filePath,
+      sourcePath: mediaPath,
+      temporary: !sourcePath,
       sourceName: name,
       sourceType: mediaTypeForExtension(extensionForName(name)),
       title: `${mediaTypeForExtension(extensionForName(name)) === 'audio' ? '语音' : mediaTypeForExtension(extensionForName(name)) === 'video' ? '视频' : '图片'}提醒 · ${path.basename(name, extensionForName(name))}`,
@@ -2104,7 +2128,7 @@ async function parseReminderImportFile(filePath, now, items) {
     return;
   }
 
-  const source = fs.readFileSync(filePath);
+  const source = buffer || fs.readFileSync(sourcePath);
   if (category === 'text') {
     appendParsedReminderImportItems(items, parseReminderText(source.toString('utf8'), now), name);
     return;
@@ -2150,7 +2174,7 @@ async function prepareReminderImport(options = {}) {
     try {
       await parseReminderImportFile(filePath, now, items);
     } catch (error) {
-      const name = path.basename(String(filePath || '')) || '文件';
+      const name = typeof filePath === 'string' ? path.basename(filePath) : path.basename(String(filePath?.name || '')) || '文件';
       errors.push(`${name}：${error.message || '无法读取文件。'}`);
     }
   }

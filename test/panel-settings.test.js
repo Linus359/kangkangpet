@@ -58,6 +58,9 @@ test('reminder imports use a staged preview and unified drop/paste entry', () =>
   assert.match(panelHtml, /commitReminderImport/);
   assert.match(panelHtml, /document\.addEventListener\('paste', handleReminderPaste\)/);
   assert.match(panelHtml, /确认导入/);
+  assert.match(panelHtml, /document\.addEventListener\('dragover', handleReminderDragOver\)/);
+  assert.match(panelHtml, /document\.addEventListener\('drop', handleReminderDrop\)/);
+  assert.match(panelHtml, /droppedFileEntry/);
 });
 
 test('tools page scrolls with the panel and collapses before the minimum width', () => {
