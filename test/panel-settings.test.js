@@ -18,6 +18,10 @@ test('settings autosave preserves active inputs and IME composition', () => {
   assert.match(panelHtml, /document\.addEventListener\('compositionend'/);
   assert.match(panelHtml, /await api\.updateConfig\(patch\);/);
   assert.match(panelHtml, /Object\.entries\(patch \|\| \{\}\)\.forEach/);
+  assert.match(panelHtml, /function syncSettingsTextArea\(field, value\)/);
+  assert.match(panelHtml, /if \(document\.activeElement !== field\) field\.value = value;/);
+  assert.match(panelHtml, /syncSettingsTextArea\(responses, config\.responses\.join\('\\n'\)\)/);
+  assert.match(panelHtml, /syncSettingsTextArea\(idleMessages, config\.idleMessages\.join\('\\n'\)\)/);
   assert.doesNotMatch(panelHtml, /api\.updateConfig\(factory\(\)\); renderSettings\(\)/);
 });
 
