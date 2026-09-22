@@ -11,7 +11,6 @@
 !define LEGACY_KANGKANGPET_SUFFIX "\kangkangpet"
 
 Var SkipEmbeddedCli
-Var KangKangPetInstallDirWasRedirected
 !ifndef BUILD_UNINSTALLER
 Var LegacyCliAuditStatus
 Var LegacyCliChoice
@@ -62,50 +61,6 @@ Function NormalizeKangKangPetInstallDir
   normalized:
 FunctionEnd
 
-Function IsPathUnderRoot
-  StrCpy $R2 "0"
-  StrLen $R3 $R1
-  StrLen $R4 $R0
-  IntCmp $R4 $R3 pathLengthEqual pathTooShort pathLengthGreater
-
-  pathLengthGreater:
-  pathLengthEqual:
-  StrCpy $R5 $R0 $R3
-  StrCmp $R5 $R1 0 pathDone
-  IntCmp $R4 $R3 pathMatch pathCheckSeparator pathCheckSeparator
-
-  pathCheckSeparator:
-  StrCpy $R5 $R0 1 $R3
-  StrCmp $R5 "\\" pathMatch pathDone
-
-  pathMatch:
-  StrCpy $R2 "1"
-
-  pathTooShort:
-  pathDone:
-FunctionEnd
-
-Function PathContains
-  StrCpy $R2 "0"
-  StrLen $R3 $R1
-  StrLen $R4 $R0
-  StrCpy $R5 "0"
-
-  pathContainsLoop:
-  IntCmp $R5 $R4 pathContainsDone pathContainsDone pathContainsCheck
-
-  pathContainsCheck:
-  StrCpy $R6 $R0 $R3 $R5
-  StrCmp $R6 $R1 pathContainsFound
-  IntOp $R5 $R5 + 1
-  Goto pathContainsLoop
-
-  pathContainsFound:
-  StrCpy $R2 "1"
-
-  pathContainsDone:
-FunctionEnd
-
 Function IsExistingKangKangPetInstallDir
   StrCpy $R2 "0"
   IfFileExists "$INSTDIR\康康熊桌宠.exe" existingInstallFound existingInstallCheckResources
@@ -123,38 +78,8 @@ Function IsExistingKangKangPetInstallDir
 FunctionEnd
 
 Function EnsureWritableKangKangPetInstallDir
-  StrCpy $KangKangPetInstallDirWasRedirected "0"
   Call IsExistingKangKangPetInstallDir
   StrCmp $R2 "1" installDirReady
-  Call NormalizeKangKangPetInstallDir
-
-  StrCpy $R0 $INSTDIR
-  StrCpy $R1 "\Program Files"
-  Call PathContains
-  StrCmp $R2 "1" redirectInstallDir
-  StrCpy $R1 "\Windows"
-  Call PathContains
-  StrCmp $R2 "1" redirectInstallDir
-
-  StrCpy $R1 "$PROGRAMFILES"
-  Call IsPathUnderRoot
-  StrCmp $R2 "1" redirectInstallDir
-
-  StrCpy $R1 "$PROGRAMFILES64"
-  Call IsPathUnderRoot
-  StrCmp $R2 "1" redirectInstallDir
-
-  StrCpy $R1 "$WINDIR"
-  Call IsPathUnderRoot
-  StrCmp $R2 "1" redirectInstallDir
-
-  StrCpy $R1 "$SYSDIR"
-  Call IsPathUnderRoot
-  StrCmp $R2 "1" redirectInstallDir installDirReady
-
-  redirectInstallDir:
-  StrCpy $KangKangPetInstallDirWasRedirected "1"
-  StrCpy $INSTDIR "$LOCALAPPDATA\\Programs"
   Call NormalizeKangKangPetInstallDir
 
   installDirReady:
@@ -227,10 +152,6 @@ FunctionEnd
 
 Function LegacyCliChoicePageShow
   Call EnsureWritableKangKangPetInstallDir
-  StrCmp $KangKangPetInstallDirWasRedirected 1 0 installDirReady
-  MessageBox MB_OK|MB_ICONEXCLAMATION "检测到选择了 Windows 受保护目录。为避免火绒拦截，安装目录已改为：$INSTDIR"
-
-  installDirReady:
   Call AuditLegacyCli
   StrCmp $LegacyCliAuditStatus "detected" legacyCliChoicePageCreate
   StrCmp $LegacyCliAuditStatus "absent" legacyCliChoicePageSkip

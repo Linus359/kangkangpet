@@ -57,12 +57,10 @@ test('uses a standard per-user installer, preserves manual legacy cleanup, and k
   assert.match(installer, /Function \.onVerifyInstDir/);
   assert.match(installer, /Function NormalizeKangKangPetInstallDir/);
   assert.match(installer, /Function IsExistingKangKangPetInstallDir/);
-  assert.match(installer, /Function PathContains/);
   assert.match(installer, /Function EnsureWritableKangKangPetInstallDir/);
   assert.match(installer, /Function EnsureWritableKangKangPetInstallDir[\s\S]*?Call IsExistingKangKangPetInstallDir[\s\S]*?Call NormalizeKangKangPetInstallDir/);
-  assert.match(installer, /StrCpy \$R1 "\$PROGRAMFILES64"/);
-  assert.match(installer, /StrCpy \$R1 "\$WINDIR"/);
-  assert.match(installer, /检测到选择了 Windows 受保护目录/);
+  assert.doesNotMatch(installer, /redirectInstallDir|KangKangPetInstallDirWasRedirected/);
+  assert.doesNotMatch(installer, /检测到选择了 Windows 受保护目录/);
   assert.match(installer, /StrCmp \$R4 "\$\{LEGACY_KANGKANGPET_SUFFIX\}" replaceLegacy appendSuffix/);
   assert.match(installer, /Call NormalizeKangKangPetInstallDir/);
   assert.match(installer, /!ifndef BUILD_UNINSTALLER/);
