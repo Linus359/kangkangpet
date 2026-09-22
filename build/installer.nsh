@@ -1,9 +1,17 @@
 !include nsDialogs.nsh
 
+; electron-builder otherwise reuses the package name for the assisted install
+; directory when the product filename contains non-ASCII characters.
+!ifdef APP_FILENAME
+  !undef APP_FILENAME
+!endif
+!define APP_FILENAME "康康Pet"
+
 !define KANGKANGPET_SUFFIX "\康康Pet"
 !define LEGACY_KANGKANGPET_SUFFIX "\kangkangpet"
 
 Var SkipEmbeddedCli
+Var KangKangPetInstallDirWasRedirected
 !ifndef BUILD_UNINSTALLER
 Var LegacyCliAuditStatus
 Var LegacyCliChoice
@@ -54,12 +62,70 @@ Function NormalizeKangKangPetInstallDir
   normalized:
 FunctionEnd
 
-Function .onVerifyInstDir
+Function IsPathUnderRoot
+  StrCpy $R2 "0"
+  StrLen $R3 $R1
+  StrLen $R4 $R0
+  IntCmp $R4 $R3 pathLengthEqual pathTooShort pathLengthGreater
+
+  pathLengthGreater:
+  pathLengthEqual:
+  StrCpy $R5 $R0 $R3
+  StrCmp $R5 $R1 0 pathDone
+  IntCmp $R4 $R3 pathMatch pathCheckSeparator pathCheckSeparator
+
+  pathCheckSeparator:
+  StrCpy $R5 $R0 1 $R3
+  StrCmp $R5 "\\" pathMatch pathDone
+
+  pathMatch:
+  StrCpy $R2 "1"
+
+  pathTooShort:
+  pathDone:
+FunctionEnd
+
+Function EnsureWritableKangKangPetInstallDir
+  StrCpy $KangKangPetInstallDirWasRedirected "0"
   Call NormalizeKangKangPetInstallDir
+
+  StrCpy $R0 $INSTDIR
+  StrCpy $R1 "$PROGRAMFILES"
+  Call IsPathUnderRoot
+  StrCmp $R2 "1" redirectInstallDir
+
+  StrCpy $R1 "$PROGRAMFILES64"
+  Call IsPathUnderRoot
+  StrCmp $R2 "1" redirectInstallDir
+
+  StrCpy $R1 "$WINDIR"
+  Call IsPathUnderRoot
+  StrCmp $R2 "1" redirectInstallDir
+
+  StrCpy $R1 "$SYSDIR"
+  Call IsPathUnderRoot
+  StrCmp $R2 "1" redirectInstallDir installDirReady
+
+  redirectInstallDir:
+  StrCpy $KangKangPetInstallDirWasRedirected "1"
+  StrCpy $INSTDIR "$LOCALAPPDATA\\Programs"
+  Call NormalizeKangKangPetInstallDir
+
+  installDirReady:
+FunctionEnd
+
+Function .onVerifyInstDir
+  Call EnsureWritableKangKangPetInstallDir
 FunctionEnd
 
 !macro customInit
-  StrCpy $INSTDIR "$PROGRAMFILES64"
+  ${StdUtils.GetParameter} $R0 "D" ""
+  ${If} $R0 == ""
+    StrCpy $INSTDIR "$LOCALAPPDATA\Programs"
+  ${Else}
+    StrCpy $INSTDIR $R0
+  ${EndIf}
+  Call EnsureWritableKangKangPetInstallDir
 !macroend
 
 !ifndef BUILD_UNINSTALLER
@@ -104,6 +170,11 @@ Function LegacyCliKeepClicked
 FunctionEnd
 
 Function LegacyCliChoicePageShow
+  Call EnsureWritableKangKangPetInstallDir
+  StrCmp $KangKangPetInstallDirWasRedirected 1 0 installDirReady
+  MessageBox MB_OK|MB_ICONEXCLAMATION "检测到选择了 Windows 受保护目录。为避免火绒拦截，安装目录已改为：$INSTDIR"
+
+  installDirReady:
   Call AuditLegacyCli
   StrCmp $LegacyCliAuditStatus "detected" legacyCliChoicePageCreate
   StrCmp $LegacyCliAuditStatus "absent" legacyCliChoicePageSkip

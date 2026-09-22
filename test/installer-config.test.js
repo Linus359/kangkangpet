@@ -45,12 +45,21 @@ test('uses a standard per-user installer, preserves manual legacy cleanup, and k
   assert.equal(nsis.menuCategory, '康康熊桌宠');
   assert.equal(nsis.runAfterFinish, true);
   assert.equal(nsis.deleteAppDataOnUninstall, false);
+  assert.match(installer, /!undef APP_FILENAME/);
+  assert.match(installer, /!define APP_FILENAME "康康Pet"/);
   assert.match(installer, /!define KANGKANGPET_SUFFIX "\\康康Pet"/);
   assert.match(installer, /!define LEGACY_KANGKANGPET_SUFFIX "\\kangkangpet"/);
   assert.match(installer, /!macro customInit/);
-  assert.match(installer, /StrCpy \$INSTDIR "\$PROGRAMFILES64"/);
+  assert.match(installer, /\$\{StdUtils\.GetParameter\} \$R0 "D" ""/);
+  assert.match(installer, /StrCpy \$INSTDIR \$R0/);
+  assert.match(installer, /StrCpy \$INSTDIR "\$LOCALAPPDATA\\Programs"/);
+  assert.match(installer, /!macro customInit[\s\S]*?Call EnsureWritableKangKangPetInstallDir/);
   assert.match(installer, /Function \.onVerifyInstDir/);
   assert.match(installer, /Function NormalizeKangKangPetInstallDir/);
+  assert.match(installer, /Function EnsureWritableKangKangPetInstallDir/);
+  assert.match(installer, /StrCpy \$R1 "\$PROGRAMFILES64"/);
+  assert.match(installer, /StrCpy \$R1 "\$WINDIR"/);
+  assert.match(installer, /检测到选择了 Windows 受保护目录/);
   assert.match(installer, /StrCmp \$R4 "\$\{LEGACY_KANGKANGPET_SUFFIX\}" replaceLegacy appendSuffix/);
   assert.match(installer, /Call NormalizeKangKangPetInstallDir/);
   assert.match(installer, /!ifndef BUILD_UNINSTALLER/);
@@ -83,4 +92,5 @@ test('uses a standard per-user installer, preserves manual legacy cleanup, and k
   assert.doesNotMatch(legacyCleanup, /Remove-Item[^\n]+credentials\.json/i);
   assert.match(installer, /Preserving local reminder, calendar, note, and settings data in AppData/);
   assert.doesNotMatch(installer, /KangKangSelectDefaultInstallDrive|Get-PSDrive|MUI_PAGE_DIRECTORY|CreateShortCut/);
+  assert.doesNotMatch(installer, /StrCpy \$INSTDIR "\$PROGRAMFILES64"/);
 });
