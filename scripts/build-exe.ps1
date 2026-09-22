@@ -66,6 +66,11 @@ if (-not (Test-Path ".\dist\cli\assets\forcome.ico")) {
   throw "Missing dist\cli\assets\forcome.ico. Copy the FORCOME AI CLI payload into dist\cli first."
 }
 
+node .\scripts\verify-cli-runtime.js
+if ($LASTEXITCODE -ne 0) {
+  throw "Bundled CLI runtime verification failed."
+}
+
 $assetFiles = @()
 if (Test-Path ".\assets\cat") {
   $assetFiles = Get-ChildItem ".\assets\cat" -File -ErrorAction SilentlyContinue |
