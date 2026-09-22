@@ -106,8 +106,26 @@ Function PathContains
   pathContainsDone:
 FunctionEnd
 
+Function IsExistingKangKangPetInstallDir
+  StrCpy $R2 "0"
+  IfFileExists "$INSTDIR\康康熊桌宠.exe" existingInstallFound existingInstallCheckResources
+
+  existingInstallCheckResources:
+  IfFileExists "$INSTDIR\resources\app.asar" existingInstallFound existingInstallCheckUninstaller
+
+  existingInstallCheckUninstaller:
+  IfFileExists "$INSTDIR\Uninstall 康康熊桌宠.exe" existingInstallFound existingInstallDone
+
+  existingInstallFound:
+  StrCpy $R2 "1"
+
+  existingInstallDone:
+FunctionEnd
+
 Function EnsureWritableKangKangPetInstallDir
   StrCpy $KangKangPetInstallDirWasRedirected "0"
+  Call IsExistingKangKangPetInstallDir
+  StrCmp $R2 "1" installDirReady
   Call NormalizeKangKangPetInstallDir
 
   StrCpy $R0 $INSTDIR
@@ -148,10 +166,13 @@ FunctionEnd
 
 !macro customInit
   ${StdUtils.GetParameter} $R0 "D" ""
-  ${If} $R0 == ""
-    StrCpy $INSTDIR "$LOCALAPPDATA\Programs"
-  ${Else}
+  ${If} $R0 != ""
     StrCpy $INSTDIR $R0
+  ${Else}
+    StrCmp $INSTDIR "" customInitDefaultDir customInitKeepExistingDir
+    customInitDefaultDir:
+    StrCpy $INSTDIR "$LOCALAPPDATA\Programs"
+    customInitKeepExistingDir:
   ${EndIf}
   Call EnsureWritableKangKangPetInstallDir
 !macroend

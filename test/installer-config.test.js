@@ -56,8 +56,10 @@ test('uses a standard per-user installer, preserves manual legacy cleanup, and k
   assert.match(installer, /!macro customInit[\s\S]*?Call EnsureWritableKangKangPetInstallDir/);
   assert.match(installer, /Function \.onVerifyInstDir/);
   assert.match(installer, /Function NormalizeKangKangPetInstallDir/);
+  assert.match(installer, /Function IsExistingKangKangPetInstallDir/);
   assert.match(installer, /Function PathContains/);
   assert.match(installer, /Function EnsureWritableKangKangPetInstallDir/);
+  assert.match(installer, /Function EnsureWritableKangKangPetInstallDir[\s\S]*?Call IsExistingKangKangPetInstallDir[\s\S]*?Call NormalizeKangKangPetInstallDir/);
   assert.match(installer, /StrCpy \$R1 "\$PROGRAMFILES64"/);
   assert.match(installer, /StrCpy \$R1 "\$WINDIR"/);
   assert.match(installer, /检测到选择了 Windows 受保护目录/);
@@ -84,6 +86,7 @@ test('uses a standard per-user installer, preserves manual legacy cleanup, and k
   assert.match(installer, /已保留内置 FORCOME AI CLI 文件；运行时将避免与独立安装版连接器同时运行。/);
   assert.doesNotMatch(installer, /RMDir \/r "\$INSTDIR\\resources\\forcome-cli"/);
   assert.match(installer, /IfSilent legacyCliSilentSkip/);
+  assert.match(installer, /StrCmp \$INSTDIR "" customInitDefaultDir customInitKeepExistingDir/);
   assert.match(legacyCleanup, /if \(\$audit\.Count -gt 0\) \{ exit 10 \}/);
   assert.deepEqual([...legacyCleanupBytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
   assert.match(legacyCleanup, /ForcomeAI-Connector/);
