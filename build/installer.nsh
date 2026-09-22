@@ -85,11 +85,39 @@ Function IsPathUnderRoot
   pathDone:
 FunctionEnd
 
+Function PathContains
+  StrCpy $R2 "0"
+  StrLen $R3 $R1
+  StrLen $R4 $R0
+  StrCpy $R5 "0"
+
+  pathContainsLoop:
+  IntCmp $R5 $R4 pathContainsDone pathContainsDone pathContainsCheck
+
+  pathContainsCheck:
+  StrCpy $R6 $R0 $R3 $R5
+  StrCmp $R6 $R1 pathContainsFound
+  IntOp $R5 $R5 + 1
+  Goto pathContainsLoop
+
+  pathContainsFound:
+  StrCpy $R2 "1"
+
+  pathContainsDone:
+FunctionEnd
+
 Function EnsureWritableKangKangPetInstallDir
   StrCpy $KangKangPetInstallDirWasRedirected "0"
   Call NormalizeKangKangPetInstallDir
 
   StrCpy $R0 $INSTDIR
+  StrCpy $R1 "\Program Files"
+  Call PathContains
+  StrCmp $R2 "1" redirectInstallDir
+  StrCpy $R1 "\Windows"
+  Call PathContains
+  StrCmp $R2 "1" redirectInstallDir
+
   StrCpy $R1 "$PROGRAMFILES"
   Call IsPathUnderRoot
   StrCmp $R2 "1" redirectInstallDir

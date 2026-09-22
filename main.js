@@ -198,6 +198,7 @@ const FORCOME_HEALTH_CHECK_MS = 2 * 60 * 1000;
 const FORCOME_RECONNECT_DELAYS_MS = [5000, 15000, 30000, 60000, 120000];
 const UPDATER_RETRY_DELAYS_MS = [30000, 120000, 300000];
 const TRAY_DOUBLE_CLICK_WINDOW_MS = 600;
+const UPDATER_CACHE_DIR_NAME = 'kangkangpet-updater';
 
 function writeLog(message, error = null) {
   if (logger) logger.write(message, error);
@@ -207,6 +208,49 @@ function publicUpdaterState() {
   return app.isPackaged && fs.existsSync(UPDATER_CONFIG_PATH)
     ? { ...updaterState }
     : { status: 'unavailable', version: app.getVersion(), message: app.isPackaged ? '免安装预览版不支持在线更新。' : '开发环境不检查更新。' };
+}
+
+function updaterVersionParts(version) {
+  const match = String(version || '').match(/^(\d+)\.(\d+)\.(\d+)/);
+  return match ? match.slice(1).map(Number) : null;
+}
+
+function compareUpdaterVersions(left, right) {
+  const leftParts = updaterVersionParts(left);
+  const rightParts = updaterVersionParts(right);
+  if (!leftParts || !rightParts) return null;
+  for (let index = 0; index < 3; index += 1) {
+    if (leftParts[index] !== rightParts[index]) return leftParts[index] > rightParts[index] ? 1 : -1;
+  }
+  return 0;
+}
+
+function cleanupStaleUpdaterCache() {
+  if (!app.isPackaged) return;
+  const localAppData = process.env.LOCALAPPDATA || path.join(app.getPath('home'), 'AppData', 'Local');
+  const pendingDir = path.join(localAppData, UPDATER_CACHE_DIR_NAME, 'pending');
+  const updateInfoPath = path.join(pendingDir, 'update-info.json');
+  if (!fs.existsSync(updateInfoPath)) return;
+
+  let updateInfo;
+  try {
+    updateInfo = JSON.parse(fs.readFileSync(updateInfoPath, 'utf8'));
+  } catch (error) {
+    writeLog('读取待安装更新缓存失败。', error);
+    return;
+  }
+
+  const match = String(updateInfo?.fileName || '').match(/^kangkangpet-setup-(\d+\.\d+\.\d+(?:[-+][\w.-]+)?)\.exe$/i);
+  const cachedVersion = match?.[1] || null;
+  const comparison = compareUpdaterVersions(cachedVersion, app.getVersion());
+  if (!cachedVersion || comparison == null || comparison > 0) return;
+
+  try {
+    fs.rmSync(pendingDir, { recursive: true, force: true });
+    writeLog(`已清理过期待安装更新缓存：${cachedVersion}。当前版本：${app.getVersion()}。`);
+  } catch (error) {
+    writeLog(`清理过期待安装更新缓存失败：${cachedVersion}。`, error);
+  }
 }
 
 function broadcastUpdaterState() {
@@ -376,6 +420,7 @@ async function checkForUpdates() {
 
 function setupAutoUpdater() {
   if (!app.isPackaged || !fs.existsSync(UPDATER_CONFIG_PATH)) return;
+  cleanupStaleUpdaterCache();
   configureAutoUpdater();
   checkForUpdates().catch((error) => writeLog('无法启动在线更新检查。', error));
 }

@@ -56,6 +56,7 @@ test('uses a standard per-user installer, preserves manual legacy cleanup, and k
   assert.match(installer, /!macro customInit[\s\S]*?Call EnsureWritableKangKangPetInstallDir/);
   assert.match(installer, /Function \.onVerifyInstDir/);
   assert.match(installer, /Function NormalizeKangKangPetInstallDir/);
+  assert.match(installer, /Function PathContains/);
   assert.match(installer, /Function EnsureWritableKangKangPetInstallDir/);
   assert.match(installer, /StrCpy \$R1 "\$PROGRAMFILES64"/);
   assert.match(installer, /StrCpy \$R1 "\$WINDIR"/);

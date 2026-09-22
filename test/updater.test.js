@@ -25,6 +25,12 @@ test('packages GitHub Releases metadata for automatic updates', () => {
 test('checks packaged installs for updates without affecting development', () => {
   assert.match(mainSource, /const \{ autoUpdater \} = require\('electron-updater'\);/);
   assert.match(mainSource, /const UPDATER_CONFIG_PATH = path\.join\(process\.resourcesPath, 'app-update\.yml'\);/);
+  assert.match(mainSource, /const UPDATER_CACHE_DIR_NAME = 'kangkangpet-updater';/);
+  assert.match(mainSource, /function cleanupStaleUpdaterCache\(\)/);
+  assert.match(mainSource, /const match = String\(updateInfo\?\.fileName \|\| ''\)\.match/);
+  assert.match(mainSource, /comparison > 0/);
+  assert.match(mainSource, /fs\.rmSync\(pendingDir, \{ recursive: true, force: true \}\)/);
+  assert.match(mainSource, /cleanupStaleUpdaterCache\(\);/);
   assert.match(mainSource, /fs\.existsSync\(UPDATER_CONFIG_PATH\)/);
   assert.match(mainSource, /function setupAutoUpdater\(\) \{[\s\S]*?if \(!app\.isPackaged \|\| !fs\.existsSync\(UPDATER_CONFIG_PATH\)\) return;/);
   assert.match(mainSource, /autoUpdater\.checkForUpdates\(\)/);
