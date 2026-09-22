@@ -57,7 +57,8 @@ test('interaction button actions use readable choices and keep legacy keys', () 
 
 test('reminder imports use a staged preview and unified drop/paste entry', () => {
   assert.match(mainSource, /formatReminderSchedule, mergeImportedReminders, normalizeReminder, normalizeReminders/);
-  assert.match(panelHtml, /id="reminderImportDropZone"/);
+  assert.doesNotMatch(panelHtml, /id="reminderImportDropZone"/);
+  assert.doesNotMatch(panelHtml, /\.import-drop-zone/);
   assert.match(panelHtml, /id="reminderImportPreview"/);
   assert.match(panelHtml, /prepareReminderFiles/);
   assert.match(panelHtml, /prepareReminderImage/);
@@ -66,6 +67,8 @@ test('reminder imports use a staged preview and unified drop/paste entry', () =>
   assert.match(panelHtml, /确认导入/);
   assert.match(panelHtml, /document\.addEventListener\('dragover', handleReminderDragOver\)/);
   assert.match(panelHtml, /document\.addEventListener\('drop', handleReminderDrop\)/);
+  assert.match(panelHtml, /types\.includes\('text\/plain'\)/);
+  assert.match(panelHtml, /import-active/);
   assert.match(panelHtml, /droppedFileEntry/);
 });
 

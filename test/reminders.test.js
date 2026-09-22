@@ -124,6 +124,23 @@ test('imports JSON data without duplicate fingerprints and preserves sort order'
   assert.deepEqual(result.reminders.map((item) => item.sortOrder), [0, 1]);
 });
 
+test('imports large batches without truncating valid reminders and isolates invalid rows', () => {
+  const incoming = Array.from({ length: 500 }, (_item, index) => ({
+    id: `batch-${index}`,
+    title: `批量提醒 ${index}`,
+    message: `内容 ${index}`,
+    repeat: 'daily',
+    time: `${String(Math.floor(index / 60) % 24).padStart(2, '0')}:${String(index % 60).padStart(2, '0')}`
+  }));
+  incoming[37] = { id: 'invalid-row', title: '无效行', repeat: 'daily', time: '99:99' };
+  incoming.push({ ...incoming[0], id: 'duplicate-id-with-different-id', title: incoming[0].title, message: incoming[0].message });
+  const result = mergeImportedReminders([], incoming, at('2026-01-01T08:00:00'));
+  assert.equal(result.imported, 499);
+  assert.equal(result.errors.length, 1);
+  assert.equal(result.reminders.length, 499);
+  assert.equal(result.reminders.at(-1).sortOrder, 498);
+});
+
 test('updates only selected reminders in a bulk action and preserves scheduling state', () => {
   const now = localAt(2026, 1, 1, 8);
   const source = normalizeReminders([

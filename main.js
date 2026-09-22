@@ -2244,6 +2244,23 @@ function cancelReminderImport(token) {
   return { ok: true };
 }
 
+function persistReminderImport(previousReminders, previousDrafts, reason, reschedule) {
+  clearTimeout(saveTimer);
+  try {
+    config.reminders = sortReminders(config.reminders);
+    configStore.save(config);
+  } catch (error) {
+    config.reminders = previousReminders;
+    config.reminderDrafts = previousDrafts;
+    writeLog('批量导入保存失败，已恢复原数据。', error);
+    return { ok: false, errors: ['批量导入保存失败，原数据未更改，请重试。'] };
+  }
+  broadcastConfig();
+  if (reschedule) scheduler?.reschedule(reason);
+  writeLog(`提醒已保存：${reason}`);
+  return { ok: true };
+}
+
 function commitReminderImport(token, selectedIndexes) {
   const key = String(token || '');
   const batch = pendingReminderImports.get(key);
@@ -2253,6 +2270,8 @@ function commitReminderImport(token, selectedIndexes) {
     : new Set(batch.items.map((_item, index) => index));
   if (!selected.size) return { ok: false, errors: ['请至少选择一条要导入的内容。'], config: publicConfig() };
 
+  const previousReminders = config.reminders;
+  const previousDrafts = config.reminderDrafts;
   const incoming = [];
   const drafts = [];
   const errors = [...batch.errors];
@@ -2275,12 +2294,9 @@ function commitReminderImport(token, selectedIndexes) {
   config.reminders = merged.reminders;
   errors.push(...merged.errors.map((item) => `第 ${Number(item.index) + 1} 条未导入`));
   const draftsImported = appendReminderDrafts(drafts);
-  if (merged.imported) {
-    saveReminders('import-preview');
-    scheduler?.reschedule('import-preview');
-  } else if (draftsImported) {
-    saveConfigSoon();
-    broadcastConfig();
+  if (merged.imported || draftsImported) {
+    const persisted = persistReminderImport(previousReminders, previousDrafts, 'import-preview', Boolean(merged.imported));
+    if (!persisted.ok) return { ...persisted, imported: 0, draftsImported: 0, config: publicConfig() };
   }
   cleanupPendingReminderImport(batch);
   pendingReminderImports.delete(key);
