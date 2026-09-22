@@ -70,6 +70,8 @@ test('uses a standard per-user installer, preserves manual legacy cleanup, and k
   assert.match(installer, /检测到电脑中存在旧版FORCOME AI CLI。/);
   assert.match(installer, /NSD_CreateButton\} 20u 70u 120u 28u "卸载旧版"/);
   assert.match(installer, /NSD_CreateButton\} 160u 70u 120u 28u "保留旧版"/);
+  assert.match(installer, /Function RestoreLegacyCliNavigation/);
+  assert.match(installer, /legacyCliChoicePageDone:[\s\S]*?Call RestoreLegacyCliNavigation/);
   assert.match(installer, /!macro customInstall/);
   assert.match(installer, /taskkill \/F \/T \/IM/);
   assert.match(installer, /cleanup-legacy-cli\.ps1/);

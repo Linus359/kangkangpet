@@ -197,6 +197,13 @@ Function LegacyCliKeepClicked
   SendMessage $0 ${BM_CLICK} 0 0
 FunctionEnd
 
+Function RestoreLegacyCliNavigation
+  GetDlgItem $0 $HWNDPARENT 1
+  ShowWindow $0 ${SW_SHOW}
+  GetDlgItem $0 $HWNDPARENT 2
+  ShowWindow $0 ${SW_SHOW}
+FunctionEnd
+
 Function LegacyCliChoicePageShow
   Call EnsureWritableKangKangPetInstallDir
   StrCmp $KangKangPetInstallDirWasRedirected 1 0 installDirReady
@@ -251,6 +258,7 @@ Function LegacyCliChoicePageLeave
   DetailPrint "用户选择保留旧版 CLI，本次跳过内置 CLI 部署。"
 
   legacyCliChoicePageDone:
+  Call RestoreLegacyCliNavigation
 FunctionEnd
 !endif
 
